@@ -119,7 +119,7 @@ Conventions to establish in Phase 1:
 
 | File | Action | Why |
 |---|---|---|
-| `package.json`, `tsconfig.json`, `tailwind.config.ts` | CREATE | Next.js 15 App Router + TS + Tailwind scaffold |
+| `package.json`, `tsconfig.json`, `postcss.config.mjs` | ✅ DONE | **Next.js 16.3.6** + React 19.2.8 + TS + Tailwind. Note: 16, not 15 — read `node_modules/next/dist/docs/` before writing Next-specific code |
 | `CLAUDE.md` | CREATE | Record stack, conventions, and the four gotchas for every later session |
 | `.env.local` / `.env.example` | CREATE | `SOCRATA_APP_TOKEN` (server-only, never `NEXT_PUBLIC_`) |
 | `lib/nyc/bbl.ts` | CREATE | BBL normalize / decompose / PLUTO-float handling. **The one module that must be tested** |
@@ -142,10 +142,17 @@ Conventions to establish in Phase 1:
 
 ## Tasks
 
-### Phase 0 — Deploy an empty app FIRST (1h)
-- **Action**: `create-next-app` (TS, Tailwind, App Router) → git init → push → live on Vercel before a single feature exists
-- **Validate**: public URL loads
-- **Why non-negotiable**: teams that defer deploy to hour 30 ship nothing. Do this first.
+### Phase 0 — Scaffold + deploy ✅ MOSTLY DONE (2026-09-26)
+
+Done: `create-next-app` (Next 16.3.6 / React 19.2.8, TS, Tailwind, App Router), git repo on `main`,
+Vitest wired, `lib/nyc/bbl.ts` + 6 passing tests, all three validation gates green
+(`npm test`, `npm run typecheck`, `npm run build`).
+
+**Remaining (human step): connect the repo to Vercel and confirm a public URL loads.**
+Teams that defer deploy to hour 30 ship nothing — do this before Phase 2.
+
+Note: `@types/node` was bumped 20 → ^24 to satisfy Vitest 5's peer range. Node local is v24.12.0,
+so this is the correct resolution, not a `--legacy-peer-deps` workaround.
 
 ### Phase 1 — Data layer (4h)
 - **Action**: Build `lib/nyc/*` per the verified table. Start with `bbl.ts`, then `geosearch.ts`,
