@@ -25,7 +25,7 @@ npm run typecheck
 npm run build
 ```
 
-## ⚠️ Four dataset traps — do not rediscover these
+## ⚠️ Five dataset traps — do not rediscover these
 
 1. **HPD violations (`wvxf-dwi5`) has NO `bbl` column, and filtering on `bbl` FAILS SILENTLY** —
    returns `count: 0` instead of an error, which would report every building as spotless.
@@ -33,6 +33,41 @@ npm run build
 2. **PLUTO (`64uk-42ks`) returns `bbl` as a float string**: `"1021310044.00000000"`. Normalize both sides.
 3. **HPD Complaints (`uwyv-629c`) is auth-gated** — *"You must be logged in."* Don't depend on it.
 4. **Socrata throttles without an app token.** Send `X-App-Token` on every call.
+5. **The rent-stabilized CSV is Git LFS.** `raw.githubusercontent.com` returns a *pointer file*, not
+   data. Use `media.githubusercontent.com/media/...` (see Rent + stabilization below).
+
+## Rent + stabilization — both keyless, both verified
+
+**Area rent (Zillow ZORI)** — `files.zillowstatic.com/research/public_csvs/zori/Zip_zori_uc_sfrcondomfr_sm_month.csv`
+10 MB, no key, 149 cols = monthly to **2026-08-31**, keyed by ZIP (`RegionName`). Unpivot wide→long.
+Verified Aug 2026: `10033` $3,204 · `10027` $3,918 · `11211` $5,020.
+**Always label it "area rent"** — it is ZIP-level, never this unit's rent.
+
+**Rent stabilization** — `media.githubusercontent.com/media/firstmovernyc/nyc-rent-stabilized-listings/main/5_coordinates_complete/listing_with_coordinates_complete.csv`
+5.2 MB, 49,119 buildings. `BOROUGH`+`BLOCK`+`LOT` → BBL (Manhattan 1, Bronx 2, Brooklyn 3, Queens 4,
+SI 5; pad block to 5, lot to 4). All Queens rows lack `STATUS1` — treat presence-in-list as the signal.
+Hobby project, **no license**, may contain errors → don't vendor the CSV, credit the repo + RGB,
+label "community-sourced, unofficial," never state as legal fact.
+
+**Market rent is NOT in NYC Open Data.** Settled — don't go looking.
+
+## Product rules
+
+- **Building grade only** — the landlord grade is shelved. Print the grade's inputs, thresholds and
+  weights on screen beside it, each linking to its dataset. Auditable in ten seconds, or it doesn't ship.
+- **Landlord = facts only.** "Also runs N buildings, X combined open violations." No judgment.
+- **No ML predictions.** Stabilized → RGB published cap (a rule). Unstabilized → ZORI trend with the
+  method printed. No model, no black-box score.
+- Every displayed number links to its source dataset.
+
+## Sponsor tracks + drop order
+
+Gemini (grounded summary + rights Q&A) · .Tech · ElevenLabs (narrate Gemini's text) · Tiger Data
+(**read-side analytics only** — ZORI hypertable, stabilized table, leaderboard aggregate; core path
+stays live against Socrata).
+
+Behind at hour 24, cut in this order: **RapidAPI → Tiger Data → ElevenLabs → leaderboard → rights.**
+**Never cut:** report card · area rent trend · stabilization status · landlord portfolio · grade.
 
 ## Join key
 
