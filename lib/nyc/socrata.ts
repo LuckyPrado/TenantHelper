@@ -35,10 +35,40 @@ function buildUrl(datasetId: string, params: SoqlParams): string {
   return url.toString();
 }
 
-function appToken(): string | undefined {
-  const raw = process.env.SOCRATA_APP_TOKEN;
+function env(name: string): string | undefined {
+  const raw = process.env[name];
   const trimmed = typeof raw === 'string' ? raw.trim() : '';
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/**
+ * Socrata accepts two different, non-interchangeable credentials:
+ *
+ *   - An **App Token**  → `X-App-Token: <token>`
+ *   - An **API Key**    → HTTP Basic auth, username = Key ID, password = Key Secret
+ *
+ * Sending an API Key ID as an App Token fails with
+ * `403 "Invalid app_token specified"`, which is easy to mistake for a bad token
+ * rather than the wrong credential type. Both are supported here; the API Key
+ * wins when present because it also lifts rate limits.
+ */
+export function authHeaders(): Record<string, string> {
+  const keyId = env('SOCRATA_API_KEY_ID');
+  const keySecret = env('SOCRATA_API_KEY_SECRET');
+  if (keyId !== undefined && keySecret !== undefined) {
+    return { Authorization: `Basic ${btoa(`${keyId}:${keySecret}`)}` };
+  }
+
+  const token = env('SOCRATA_APP_TOKEN');
+  if (token !== undefined) {
+    return { 'X-App-Token': token };
+  }
+
+  return {};
+}
+
+function hasCredentials(): boolean {
+  return Object.keys(authHeaders()).length > 0;
 }
 
 /**
@@ -64,12 +94,11 @@ export async function socrataQuery<TRow>(
 ): Promise<Result<readonly TRow[]>> {
   const { keyDesc, timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl = fetch } = options;
   const url = buildUrl(datasetId, params);
-  const token = appToken();
   const startedAt = Date.now();
 
-  const send = (withToken: boolean): Promise<Response> =>
+  const send = (withCredentials: boolean): Promise<Response> =>
     fetchImpl(url, {
-      headers: withToken && token ? { 'X-App-Token': token } : {},
+      headers: withCredentials ? authHeaders() : {},
       signal: AbortSignal.timeout(timeoutMs),
     });
 
@@ -80,7 +109,7 @@ export async function socrataQuery<TRow>(
     // A rejected app token returns 403 while the SAME request unauthenticated
     // returns 200. Rather than let a mistyped token take the whole app down,
     // retry once without it and make the misconfiguration loud instead of fatal.
-    if (response.status === 403 && token !== undefined) {
+    if (response.status === 403 && hasCredentials()) {
       warnOnceAboutBadToken();
       response = await send(false);
     }
@@ -163,12 +192,12 @@ let warnedAboutToken = false;
 function warnOnceAboutBadToken(): void {
   if (warnedAboutToken) return;
   warnedAboutToken = true;
-  console.warn(
-    '[nyc] SOCRATA_APP_TOKEN was rejected (403 "Invalid app_token"). ' +
-      'Falling back to unauthenticated requests, which WILL be throttled under load. ' +
-      'Fix: data.cityofnewyork.us → profile → Developer Settings → copy the "App Token" ' +
-      '(not the Secret Token), created on that portal.',
-  );
+  console.warn('[nyc] Socrata rejected the configured credentials (403).');
+  console.warn('[nyc] Falling back to unauthenticated requests, which WILL be throttled.');
+  console.warn('[nyc] An API Key is NOT an App Token. Use exactly one of:');
+  console.warn('[nyc]   SOCRATA_API_KEY_ID + SOCRATA_API_KEY_SECRET  (Developer Settings > API Keys)');
+  console.warn('[nyc]   SOCRATA_APP_TOKEN                            (Developer Settings > App Tokens)');
+  console.warn('[nyc] Sending an API Key ID as SOCRATA_APP_TOKEN produces exactly this error.');
 }
 
 /** Test seam: reset the once-per-process warning latch. */

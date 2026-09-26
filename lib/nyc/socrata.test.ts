@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetTokenWarningForTests, socrataCount, socrataQuery, soqlString } from './socrata';
+import { authHeaders, resetTokenWarningForTests, socrataCount, socrataQuery, soqlString } from './socrata';
 
 const DATASET = 'wvxf-dwi5';
 const KEY = { keyDesc: 'test' };
@@ -162,7 +162,27 @@ describe('rejected app token', () => {
       'X-App-Token': 'bad-token',
     });
     expect((fetchImpl.mock.calls[1][1] as RequestInit).headers).toEqual({});
-    expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('warns once per process, not once per request', async () => {
+    resetTokenWarningForTests();
+    process.env.SOCRATA_APP_TOKEN = 'bad-token';
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(jsonResponse([{ count_1: '1' }]))
+      .mockResolvedValueOnce(jsonResponse({}, 403))
+      .mockResolvedValueOnce(jsonResponse([{ count_1: '1' }]))
+      .mockResolvedValueOnce(jsonResponse({}, 403));
+
+    await socrataCount(DATASET, "bbl='1'", { ...KEY, fetchImpl });
+    const afterFirst = warn.mock.calls.length;
+    await socrataCount(DATASET, "bbl='2'", { ...KEY, fetchImpl });
+
+    // A report fans out to six fetchers; the advice should not print six times.
+    expect(afterFirst).toBeGreaterThan(0);
+    expect(warn.mock.calls.length).toBe(afterFirst);
   });
 
   it('does not retry a 403 when no token was sent', async () => {
@@ -173,5 +193,41 @@ describe('rejected app token', () => {
 
     expect(result.ok).toBe(false);
     expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+});
+
+describe('authHeaders — App Token vs API Key are different credentials', () => {
+  afterEach(() => {
+    delete process.env.SOCRATA_API_KEY_ID;
+    delete process.env.SOCRATA_API_KEY_SECRET;
+  });
+
+  it('sends nothing when no credentials are configured', () => {
+    expect(authHeaders()).toEqual({});
+  });
+
+  it('sends an App Token as X-App-Token', () => {
+    process.env.SOCRATA_APP_TOKEN = 'apptok';
+    expect(authHeaders()).toEqual({ 'X-App-Token': 'apptok' });
+  });
+
+  it('sends an API Key as HTTP Basic auth, not as a token', () => {
+    process.env.SOCRATA_API_KEY_ID = 'keyid';
+    process.env.SOCRATA_API_KEY_SECRET = 'secret';
+
+    expect(authHeaders()).toEqual({ Authorization: `Basic ${btoa('keyid:secret')}` });
+  });
+
+  it('prefers the API Key when both are configured', () => {
+    process.env.SOCRATA_APP_TOKEN = 'apptok';
+    process.env.SOCRATA_API_KEY_ID = 'keyid';
+    process.env.SOCRATA_API_KEY_SECRET = 'secret';
+
+    expect(authHeaders()).toEqual({ Authorization: `Basic ${btoa('keyid:secret')}` });
+  });
+
+  it('ignores an API Key ID with no secret rather than sending a half credential', () => {
+    process.env.SOCRATA_API_KEY_ID = 'keyid';
+    expect(authHeaders()).toEqual({});
   });
 });
