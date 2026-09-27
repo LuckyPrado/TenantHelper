@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "smoke": "vitest run --config vitest.live.config.ts",
-    "ingest": "node scripts/ingest-tiger.mjs"
+    "ingest": "node scripts/ingest-tiger.mjs",
+    "shot": "node shot.mjs"
   },
   "dependencies": {
     "mapbox-gl": "^3.31.0",
@@ -29,7 +30,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
-    "playwright": "^1.63.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.2"

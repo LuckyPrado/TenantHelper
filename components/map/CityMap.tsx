@@ -36,7 +36,7 @@ export function CityMap() {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const driftRef = useRef<number | null>(null);
   const userTookOverRef = useRef(false);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'no-token' | 'failed'>(
+  const [status, setStatus] = useState<'loading' | 'ready' | 'no-token' | 'no-webgl' | 'failed'>(
     TOKEN === '' ? 'no-token' : 'loading',
   );
 
@@ -50,6 +50,14 @@ export function CityMap() {
     // Deferred so a construction failure reports state asynchronously.
     queueMicrotask(() => {
       if (cancelled) return;
+      // Mapbox needs WebGL. Firefox disables it on blocklisted drivers and
+      // when hardware acceleration is off, which looks identical to a broken
+      // build from the outside — so name the cause rather than fail silently.
+      if (!mapboxgl.supported()) {
+        setStatus('no-webgl');
+        return;
+      }
+
       try {
         mapboxgl.accessToken = TOKEN;
         map = new mapboxgl.Map({
@@ -224,6 +232,15 @@ export function CityMap() {
           <p className="max-w-md text-center text-[0.78rem] leading-snug text-paper-edge/70">
             Map unavailable — NEXT_PUBLIC_MAPBOX_TOKEN was not present when this build ran. Set it,
             then redeploy without the build cache.
+          </p>
+        </div>
+      )}
+      {status === 'no-webgl' && (
+        <div className="absolute inset-x-0 bottom-6 flex justify-center px-6">
+          <p className="max-w-md text-center text-[0.8rem] leading-snug text-paper-edge/80">
+            This browser has WebGL turned off, so the 3D map cannot draw. In Firefox, enable
+            hardware acceleration in Settings, or set webgl.force-enabled to true in about:config.
+            Everything else on the site works without it.
           </p>
         </div>
       )}
