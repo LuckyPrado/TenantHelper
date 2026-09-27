@@ -1,3 +1,5 @@
+import { ListenButton } from '@/components/ListenButton';
+import { isElevenLabsConfigured } from '@/lib/elevenlabs';
 import { isGeminiConfigured, summariseBuilding } from '@/lib/gemini';
 import type { Grade } from '@/lib/grade';
 import type { BuildingReport } from '@/lib/nyc/report';
@@ -39,9 +41,12 @@ export async function BuildingSummary({
 
   return (
     <section className="rounded-xl border border-black/10 p-6 dark:border-white/15">
-      <div className="flex items-baseline justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xs font-medium uppercase tracking-wide opacity-60">In plain English</h2>
-        <span className="text-xs opacity-40">Gemini</span>
+        <div className="flex items-center gap-3">
+          {isElevenLabsConfigured() && <ListenButton bbl={report.bbl} bin={report.bin} />}
+          <span className="text-xs opacity-40">Gemini</span>
+        </div>
       </div>
       <p className="mt-2 text-sm leading-relaxed">{summary.data}</p>
       <p className="mt-3 text-xs leading-snug opacity-60">
