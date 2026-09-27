@@ -13,7 +13,7 @@
 import { fetchBedbugCount } from './bedbugs';
 import { fetchDobViolationCount } from './dobViolations';
 import { fetchEvictionCount } from './evictions';
-import { fetchFootprint, type Footprint } from './footprint';
+import { fetchFootprint, fetchFootprintByBbl, type Footprint } from './footprint';
 import { fetchHpdViolations, type HpdViolationSummary } from './hpdViolations';
 import { fetchLandlord, type Landlord } from './landlord';
 import { fetchLitigationCount } from './litigations';
@@ -71,6 +71,22 @@ const UNKNOWN_BIN: SourceValue<number> = {
  * `bin` is optional because DOB violations are keyed by BIN rather than BBL;
  * without one, that single row reports unavailable and the rest still renders.
  */
+/**
+ * The building outline, by BIN when geosearch gave us one and by tax lot when
+ * it did not.
+ *
+ * The outline is what the camera flies to, so a miss here is not a missing
+ * detail — the record renders over whatever part of the city the map happened
+ * to be showing, which reads as a broken map rather than a degraded one.
+ */
+async function resolveFootprint(bbl: string, bin: string | null): Promise<Result<Footprint>> {
+  if (bin !== null) {
+    const byBin = await fetchFootprint(bin);
+    if (byBin.ok) return byBin;
+  }
+  return fetchFootprintByBbl(bbl);
+}
+
 export async function buildBuildingReport(
   bbl: string,
   bin: string | null = null,
@@ -94,7 +110,7 @@ export async function buildBuildingReport(
     bin === null ? Promise.resolve(null) : fetchDobViolationCount(bin),
     fetchStabilizationStatus(bbl),
     fetchLandlord(bbl),
-    bin === null ? Promise.resolve(null) : fetchFootprint(bin),
+    resolveFootprint(bbl, bin),
   ]);
 
   const factsValue = settle(facts);
@@ -125,10 +141,7 @@ export async function buildBuildingReport(
     areaRent,
     stabilization: settle(stabilization),
     landlord: settle(landlord),
-    footprint:
-      footprint === null
-        ? { value: null, error: 'No BIN for this address, so the outline cannot be drawn.' }
-        : settle(footprint),
+    footprint: settle(footprint),
     openViolationsPerUnit,
     generatedAt: new Date().toISOString(),
   };
