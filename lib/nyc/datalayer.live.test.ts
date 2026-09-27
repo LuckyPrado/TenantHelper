@@ -186,3 +186,19 @@ describe('live: landlord portfolio', () => {
     expect(result.data.portfolioOpenViolations).toBeGreaterThan(500);
   });
 });
+
+describe('live: leaderboard', () => {
+  it('ranks Washington Heights and finds the known worst building', async () => {
+    const { fetchLeaderboard } = await import('./leaderboard');
+
+    const result = await fetchLeaderboard('10033');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.buildingsRanked).toBeGreaterThan(300);
+    expect(result.data.worst[0].openPerUnit).toBeGreaterThan(5);
+    // The "best" list must contain genuinely clean buildings, which only exist
+    // because the ranking starts from PLUTO rather than the violations data.
+    expect(result.data.best[0].openViolations).toBe(0);
+  });
+});

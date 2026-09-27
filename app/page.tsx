@@ -57,6 +57,14 @@ export default async function HomePage({ searchParams }: PageProps<'/'>) {
         ))}
       </div>
 
+      <p className="mt-4 text-sm opacity-70">
+        Or browse{' '}
+        <Link href={{ pathname: '/leaderboard' }} className="underline">
+          the best and worst buildings by ZIP
+        </Link>
+        .
+      </p>
+
       {result !== null && !result.ok && (
         <p className="mt-8 rounded-md border border-red-500/40 bg-red-500/5 p-4 text-sm">
           {result.reason}
