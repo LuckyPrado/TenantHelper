@@ -1,9 +1,11 @@
 import Link from 'next/link';
+import { GradeCard } from '@/components/GradeCard';
 import { LandlordPortfolio } from '@/components/LandlordPortfolio';
 import { RentTrend } from '@/components/RentTrend';
 import { StabilizationCard } from '@/components/StabilizationCard';
 import { StatCard } from '@/components/StatCard';
 import { normalizeBbl } from '@/lib/nyc/bbl';
+import { gradeBuilding } from '@/lib/grade';
 import { buildBuildingReport } from '@/lib/nyc/report';
 
 /** Socrata data updates daily at best; an hour of caching costs nothing and protects the demo. */
@@ -64,6 +66,7 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
   const label = typeof rawLabel === 'string' ? rawLabel : null;
   const report = await buildBuildingReport(bbl, bin);
   const facts = report.facts.value;
+  const grade = gradeBuilding(report);
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-10 sm:py-14">
@@ -99,6 +102,10 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
             </p>
           </section>
         )}
+      </div>
+
+      <div className="mt-6">
+        <GradeCard grade={grade} />
       </div>
 
       {report.violations.value !== null && (
