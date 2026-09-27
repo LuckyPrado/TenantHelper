@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { RentTrend } from '@/components/RentTrend';
+import { StabilizationCard } from '@/components/StabilizationCard';
 import { StatCard } from '@/components/StatCard';
 import { normalizeBbl } from '@/lib/nyc/bbl';
 import { buildBuildingReport } from '@/lib/nyc/report';
@@ -127,6 +128,10 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
 
       <div className="mt-6">
         <RentTrend source={report.areaRent} />
+      </div>
+
+      <div className="mt-6">
+        <StabilizationCard source={report.stabilization} areaRent={report.areaRent} />
       </div>
 
       <section className="mt-8">

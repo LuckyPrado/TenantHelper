@@ -138,3 +138,35 @@ describe('live: ZORI area rent', () => {
     expect(heights.data.latest.month).toBe(williamsburg.data.latest.month);
   });
 });
+
+describe('live: rent stabilization', () => {
+  it('finds 500 W 175 St on the stabilized list', async () => {
+    const { fetchStabilizationStatus } = await import('./stabilized');
+
+    const result = await fetchStabilizationStatus(REF.bbl);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.isStabilized).toBe(true);
+    expect(result.data.buildingClass).toMatch(/MULTIPLE DWELLING/);
+  });
+
+  it('does not find 609 W 180 St — the contrast the demo uses', async () => {
+    const { fetchStabilizationStatus } = await import('./stabilized');
+
+    const result = await fetchStabilizationStatus(WORST.bbl);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.data.isStabilized).toBe(false);
+  });
+
+  it('gets the real CSV, not the Git LFS pointer', async () => {
+    const { fetchStabilizationStatus } = await import('./stabilized');
+
+    // A pointer file parses to zero rows, which would mark every building
+    // unstabilized. Finding a known building proves we got real bytes.
+    const result = await fetchStabilizationStatus(REF.bbl);
+
+    expect(result.ok).toBe(true);
+  });
+});

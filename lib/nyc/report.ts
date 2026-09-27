@@ -17,6 +17,7 @@ import { fetchHpdViolations, type HpdViolationSummary } from './hpdViolations';
 import { fetchLitigationCount } from './litigations';
 import { fetchBuildingFacts, type BuildingFacts } from './pluto';
 import type { Result } from './result';
+import { fetchStabilizationStatus, type StabilizationStatus } from './stabilized';
 import { fetchAreaRent, type AreaRent } from './zori';
 
 export interface SourceValue<T> {
@@ -35,6 +36,8 @@ export interface BuildingReport {
   readonly dobViolations: SourceValue<number>;
   /** ZIP-level rent from Zillow's index. Area rent, never this unit's rent. */
   readonly areaRent: SourceValue<AreaRent>;
+  /** Community-sourced list membership. A strong signal, not legal fact. */
+  readonly stabilization: SourceValue<StabilizationStatus>;
   /** Open HPD violations divided by residential units — the product's core metric. */
   readonly openViolationsPerUnit: number | null;
   readonly generatedAt: string;
@@ -66,13 +69,15 @@ export async function buildBuildingReport(
   bbl: string,
   bin: string | null = null,
 ): Promise<BuildingReport> {
-  const [facts, violations, litigations, evictions, bedbugs, dobViolations] = await Promise.all([
+  const [facts, violations, litigations, evictions, bedbugs, dobViolations, stabilization] =
+    await Promise.all([
     fetchBuildingFacts(bbl),
     fetchHpdViolations(bbl),
     fetchLitigationCount(bbl),
     fetchEvictionCount(bbl),
     fetchBedbugCount(bbl),
     bin === null ? Promise.resolve(null) : fetchDobViolationCount(bin),
+    fetchStabilizationStatus(bbl),
   ]);
 
   const factsValue = settle(facts);
@@ -101,6 +106,7 @@ export async function buildBuildingReport(
     bedbugs: settle(bedbugs),
     dobViolations: dobViolations === null ? UNKNOWN_BIN : settle(dobViolations),
     areaRent,
+    stabilization: settle(stabilization),
     openViolationsPerUnit,
     generatedAt: new Date().toISOString(),
   };
