@@ -17,6 +17,7 @@ import { fetchHpdViolations, type HpdViolationSummary } from './hpdViolations';
 import { fetchLitigationCount } from './litigations';
 import { fetchBuildingFacts, type BuildingFacts } from './pluto';
 import type { Result } from './result';
+import { fetchAreaRent, type AreaRent } from './zori';
 
 export interface SourceValue<T> {
   readonly value: T | null;
@@ -32,6 +33,8 @@ export interface BuildingReport {
   readonly evictions: SourceValue<number>;
   readonly bedbugs: SourceValue<number>;
   readonly dobViolations: SourceValue<number>;
+  /** ZIP-level rent from Zillow's index. Area rent, never this unit's rent. */
+  readonly areaRent: SourceValue<AreaRent>;
   /** Open HPD violations divided by residential units — the product's core metric. */
   readonly openViolationsPerUnit: number | null;
   readonly generatedAt: string;
@@ -42,6 +45,11 @@ function settle<T>(result: Result<T>): SourceValue<T> {
     ? { value: result.data, error: null }
     : { value: null, error: result.reason };
 }
+
+const NO_ZIP: SourceValue<AreaRent> = {
+  value: null,
+  error: 'No ZIP for this lot, so area rent cannot be looked up.',
+};
 
 const UNKNOWN_BIN: SourceValue<number> = {
   value: null,
@@ -70,6 +78,12 @@ export async function buildBuildingReport(
   const factsValue = settle(facts);
   const violationsValue = settle(violations);
 
+  // ZORI is keyed by ZIP, which comes from PLUTO, so this cannot join the
+  // parallel fan-out above. The file is cached after the first load, so the
+  // extra hop costs nothing on subsequent reports.
+  const zip = factsValue.value?.zipcode ?? null;
+  const areaRent = zip === null ? NO_ZIP : settle(await fetchAreaRent(zip));
+
   // Only computable when BOTH sides succeeded. A missing denominator yields
   // null, never Infinity and never a quietly wrong rate.
   const openViolationsPerUnit =
@@ -86,6 +100,7 @@ export async function buildBuildingReport(
     evictions: settle(evictions),
     bedbugs: settle(bedbugs),
     dobViolations: dobViolations === null ? UNKNOWN_BIN : settle(dobViolations),
+    areaRent,
     openViolationsPerUnit,
     generatedAt: new Date().toISOString(),
   };

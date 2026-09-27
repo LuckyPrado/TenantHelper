@@ -20,6 +20,8 @@ export const PLUTO_DATASET = '64uk-42ks';
 export interface BuildingFacts {
   readonly bbl: string;
   readonly address: string;
+  /** ZIP code — the key ZORI needs for area rent. */
+  readonly zipcode: string | null;
   /** Residential units — the normalization denominator. Always >= 1. */
   readonly unitsRes: number;
   readonly unitsTotal: number;
@@ -31,6 +33,7 @@ export interface BuildingFacts {
 interface PlutoRow {
   readonly bbl?: string;
   readonly address?: string;
+  readonly zipcode?: string;
   readonly unitsres?: string;
   readonly unitstotal?: string;
   readonly yearbuilt?: string;
@@ -66,7 +69,7 @@ export async function fetchBuildingFacts(
   const rows = await socrataQuery<PlutoRow>(
     PLUTO_DATASET,
     {
-      $select: 'bbl,address,unitsres,unitstotal,yearbuilt,numfloors,ownername',
+      $select: 'bbl,address,zipcode,unitsres,unitstotal,yearbuilt,numfloors,ownername',
       bbl: normalized,
     },
     { keyDesc: `bbl=${normalized}`, fetchImpl },
@@ -93,6 +96,7 @@ export async function fetchBuildingFacts(
   return ok({
     bbl: normalized,
     address: row.address?.trim() ?? '',
+    zipcode: row.zipcode?.trim() || null,
     unitsRes,
     unitsTotal: Number.isFinite(unitsTotal) ? unitsTotal : unitsRes,
     yearBuilt: optionalNumber(row.yearbuilt),

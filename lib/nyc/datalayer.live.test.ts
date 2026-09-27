@@ -105,3 +105,36 @@ describe('live: the product metric end to end', () => {
     expect(perUnit).toBeCloseTo(21.5, 1);
   });
 });
+
+describe('live: ZORI area rent', () => {
+  it('returns a current rent for Washington Heights (10033)', async () => {
+    const { fetchAreaRent } = await import('./zori');
+
+    const result = await fetchAreaRent('10033');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Verified $3,204 for 2026-08. Assert a band, not the exact figure, so the
+    // test tracks reality instead of breaking every month Zillow publishes.
+    expect(result.data.latest.rent).toBeGreaterThan(2500);
+    expect(result.data.latest.rent).toBeLessThan(4500);
+    expect(result.data.series.length).toBeGreaterThan(24);
+    expect(result.data.yearOverYearPct).not.toBeNull();
+  });
+
+  it('parses the quoted Metro column without shifting the rent columns', async () => {
+    const { fetchAreaRent } = await import('./zori');
+
+    // If quoted-comma handling regressed, columns shift by one and rents land
+    // in the wrong month — plausible numbers, silently wrong.
+    const [heights, williamsburg] = await Promise.all([
+      fetchAreaRent('10033'),
+      fetchAreaRent('11211'),
+    ]);
+
+    expect(heights.ok && williamsburg.ok).toBe(true);
+    if (!heights.ok || !williamsburg.ok) return;
+    expect(williamsburg.data.latest.rent).toBeGreaterThan(heights.data.latest.rent);
+    expect(heights.data.latest.month).toBe(williamsburg.data.latest.month);
+  });
+});

@@ -6,6 +6,7 @@ const REF_BBL = '1021310044';
 const REF_ROW = {
   bbl: '1021310044.00000000',
   address: '2308 AMSTERDAM AVENUE',
+  zipcode: '10033',
   unitsres: '58',
   unitstotal: '62',
   yearbuilt: '1911',
@@ -33,6 +34,7 @@ describe('fetchBuildingFacts', () => {
       data: {
         bbl: '1021310044',
         address: '2308 AMSTERDAM AVENUE',
+        zipcode: '10033',
         unitsRes: 58,
         unitsTotal: 62,
         yearBuilt: 1911,

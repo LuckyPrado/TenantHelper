@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { RentTrend } from '@/components/RentTrend';
 import { StatCard } from '@/components/StatCard';
 import { normalizeBbl } from '@/lib/nyc/bbl';
 import { buildBuildingReport } from '@/lib/nyc/report';
@@ -123,6 +124,10 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
           </p>
         </section>
       )}
+
+      <div className="mt-6">
+        <RentTrend source={report.areaRent} />
+      </div>
 
       <section className="mt-8">
         <h2 className="text-sm font-medium uppercase tracking-wide opacity-60">
