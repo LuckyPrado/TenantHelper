@@ -50,6 +50,16 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });
 }
 
+/** The shape the REST endpoint actually returns, captured from a live call. */
+function stepsResponse(text: string) {
+  return {
+    steps: [
+      { type: 'thought', signature: 'opaque' },
+      { type: 'model_output', content: [{ type: 'text', text }] },
+    ],
+  };
+}
+
 beforeEach(() => {
   vi.spyOn(console, 'info').mockImplementation(() => {});
   process.env.GEMINI_API_KEY = 'test-key';
@@ -88,20 +98,20 @@ describe('buildFactSheet', () => {
 
 describe('summariseBuilding', () => {
   it('sends only the fact sheet and returns the text', async () => {
-    const fetchImpl = vi
-      .fn()
-      .mockResolvedValue(jsonResponse({ output_text: 'This building is in poor condition.' }));
+    const fetchImpl = vi.fn().mockResolvedValue(
+      jsonResponse(stepsResponse('This building is in poor condition.')),
+    );
 
     const result = await summariseBuilding(report(), grade, fetchImpl);
 
     expect(result).toEqual({ ok: true, data: 'This building is in poor condition.' });
     const body = JSON.parse((fetchImpl.mock.calls[0][1] as RequestInit).body as string);
-    expect(body.model).toBe('gemini-3.8-flash');
+    expect(body.model).toBe('gemini-3.5-flash-lite');
     expect(body.input).toMatch(/609 WEST 180 STREET/);
   });
 
   it('instructs the model not to give legal advice', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ output_text: 'ok' }));
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(stepsResponse('ok')));
 
     await summariseBuilding(report(), grade, fetchImpl);
 
@@ -113,7 +123,7 @@ describe('summariseBuilding', () => {
   });
 
   it('sends the key as a header, never in the URL', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ output_text: 'ok' }));
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(stepsResponse('ok')));
 
     await summariseBuilding(report(), grade, fetchImpl);
 
@@ -138,14 +148,39 @@ describe('summariseBuilding', () => {
     expect((await summariseBuilding(report(), grade, fetchImpl)).ok).toBe(false);
   });
 
-  it('falls back to output blocks when output_text is absent', async () => {
-    const fetchImpl = vi
-      .fn()
-      .mockResolvedValue(jsonResponse({ output: [{ content: [{ text: 'Block text.' }] }] }));
+  it('reads the real REST shape: steps[] of type model_output', async () => {
+    // Verified live 2026-09-27. output_text is an SDK convenience property and
+    // is NOT present over REST, despite appearing in the docs.
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(stepsResponse('Block text.')));
 
     const result = await summariseBuilding(report(), grade, fetchImpl);
 
     expect(result).toEqual({ ok: true, data: 'Block text.' });
+  });
+
+  it('never surfaces a thought step as the answer', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      jsonResponse({
+        steps: [
+          { type: 'thought', signature: 'OPAQUE-REASONING-BLOB' },
+          { type: 'model_output', content: [{ type: 'text', text: 'The answer.' }] },
+        ],
+      }),
+    );
+
+    const result = await summariseBuilding(report(), grade, fetchImpl);
+
+    expect(result).toEqual({ ok: true, data: 'The answer.' });
+    if (result.ok) expect(result.data).not.toMatch(/OPAQUE/);
+  });
+
+  it('still accepts the SDK-style output_text if it ever appears', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ output_text: 'Legacy shape.' }));
+
+    expect(await summariseBuilding(report(), grade, fetchImpl)).toEqual({
+      ok: true,
+      data: 'Legacy shape.',
+    });
   });
 });
 

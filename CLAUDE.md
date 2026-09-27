@@ -60,6 +60,23 @@ label "community-sourced, unofficial," never state as legal fact.
 
 **Market rent is NOT in NYC Open Data.** Settled — don't go looking.
 
+## Gemini — verified 2026-09-27, do not write from memory
+
+The SDK is `@google/genai`, NOT `@google/generative-ai`. The endpoint is
+`POST /v1beta/interactions` with `system_instruction` + `input`, NOT `generateContent`.
+`output_text` is an SDK convenience property and is **absent over REST** — the real payload is
+`steps[]`, and only steps of `type: "model_output"` carry the answer. A `thought` step holds an
+opaque reasoning blob that must never reach a user.
+
+- **`gemini-3.8-flash` is capped at 20 requests PER DAY on the free tier.** A few demo clicks
+  exhaust it. We use **`gemini-3.5-flash-lite`**, which has its own far larger allowance and is
+  ~3x faster (3.0s vs 7.4s).
+- **Thinking tokens count against `max_output_tokens`.** A 320 cap was eaten by ~570 thinking
+  tokens and returned a sentence truncated at 35 characters. It is set to 2000.
+- `thinking_level: "low"` belongs inside `generation_config`; at the top level it is a 400.
+- The page renders the summary inside `<Suspense>`, so a slow call never blocks the report, and
+  `revalidate = 3600` means repeat views of a building cost no quota.
+
 ## Product rules
 
 - **Building grade only** — the landlord grade is shelved. Print the grade's inputs, thresholds and

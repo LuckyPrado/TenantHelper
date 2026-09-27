@@ -19,9 +19,30 @@ import { fail, ok, type Result } from './nyc/result';
 import type { BuildingReport } from './nyc/report';
 
 const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/interactions';
-const MODEL = 'gemini-3.8-flash';
-const TIMEOUT_MS = 15_000;
-const MAX_OUTPUT_TOKENS = 320;
+/**
+ * Chosen for free-tier quota, not capability. gemini-3.8-flash is capped at
+ * 20 requests PER DAY on the free tier — a handful of demo clicks would exhaust
+ * it. The lite models have their own, far larger allowance (verified: they
+ * answered while 3.8-flash was returning 429) and are ~3x faster: measured
+ * 3.0s here versus 7.4s, with no meaningful loss of quality for a 90-word
+ * summary of figures we hand it.
+ */
+const MODEL = 'gemini-3.5-flash-lite';
+/**
+ * Generous because thinking happens before the first token: measured 7.4s at
+ * thinking_level low and 12.6s at default. A 15s cap tripped under load. The
+ * page streams this inside Suspense, so a slow call costs nothing visible.
+ */
+const TIMEOUT_MS = 30_000;
+/**
+ * Generous on purpose. Gemini 3.8's internal reasoning counts against this
+ * budget: a 320-token cap was consumed by ~570 thinking tokens and returned a
+ * sentence truncated at 35 characters. The visible answer is still ~120 tokens.
+ */
+const MAX_OUTPUT_TOKENS = 2000;
+
+/** Cuts latency with no loss of quality here (12.6s -> 7.4s on 3.8-flash). */
+const THINKING_LEVEL = 'low';
 
 const SYSTEM_INSTRUCTION = [
   'You explain New York City building records to someone deciding whether to rent an apartment.',
@@ -115,22 +136,52 @@ export function buildFactSheet(report: BuildingReport, grade: Grade | null): str
   return lines.join('\n');
 }
 
-interface InteractionResponse {
-  readonly output_text?: unknown;
-  readonly output?: readonly { readonly content?: readonly { readonly text?: unknown }[] }[];
+interface ContentBlock {
+  readonly type?: unknown;
+  readonly text?: unknown;
 }
 
-/** Pull the text out defensively — `output_text` is the documented field. */
+interface Step {
+  readonly type?: unknown;
+  readonly content?: readonly ContentBlock[];
+}
+
+interface InteractionResponse {
+  readonly steps?: readonly Step[];
+  /** SDK convenience property. Absent from REST responses; handled anyway. */
+  readonly output_text?: unknown;
+  readonly output?: readonly { readonly content?: readonly ContentBlock[] }[];
+}
+
+function joinText(blocks: readonly ContentBlock[]): string {
+  return blocks
+    .filter((b) => b.type === undefined || b.type === 'text')
+    .map((b) => (typeof b.text === 'string' ? b.text : ''))
+    .join('');
+}
+
+/**
+ * Pull the answer out of an interactions response.
+ *
+ * The REST payload is `steps[]`, and only steps of type `model_output` carry
+ * the answer — a `thought` step holds an opaque reasoning signature and must
+ * never be surfaced to a user. `output_text` is a convenience property the SDK
+ * synthesises; it does not exist over REST, despite appearing in the docs.
+ */
 function extractText(body: InteractionResponse): string | null {
+  const fromSteps = (body.steps ?? [])
+    .filter((s) => s.type === 'model_output')
+    .map((s) => joinText(s.content ?? []))
+    .join('')
+    .trim();
+  if (fromSteps !== '') return fromSteps;
+
   if (typeof body.output_text === 'string' && body.output_text.trim() !== '') {
     return body.output_text.trim();
   }
-  const blocks = body.output?.flatMap((o) => o.content ?? []) ?? [];
-  const joined = blocks
-    .map((b) => (typeof b.text === 'string' ? b.text : ''))
-    .join('')
-    .trim();
-  return joined === '' ? null : joined;
+
+  const fromOutput = joinText(body.output?.flatMap((o) => o.content ?? []) ?? []).trim();
+  return fromOutput === '' ? null : fromOutput;
 }
 
 export function isGeminiConfigured(): boolean {
@@ -163,7 +214,11 @@ export async function summariseBuilding(
         model: MODEL,
         system_instruction: SYSTEM_INSTRUCTION,
         input: `FACTS\n${facts}\n\nExplain what this record means for someone thinking of renting here.`,
-        generation_config: { temperature: 0.2, max_output_tokens: MAX_OUTPUT_TOKENS },
+        generation_config: {
+          temperature: 0.2,
+          max_output_tokens: MAX_OUTPUT_TOKENS,
+          thinking_level: THINKING_LEVEL,
+        },
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
