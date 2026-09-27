@@ -3,9 +3,11 @@ import { GradeCard } from '@/components/GradeCard';
 import { LandlordPortfolio } from '@/components/LandlordPortfolio';
 import { RentTrend } from '@/components/RentTrend';
 import { StabilizationCard } from '@/components/StabilizationCard';
+import { TenantRights } from '@/components/TenantRights';
 import { StatCard } from '@/components/StatCard';
 import { normalizeBbl } from '@/lib/nyc/bbl';
 import { gradeBuilding } from '@/lib/grade';
+import { rightsFor } from '@/lib/rights';
 import { buildBuildingReport } from '@/lib/nyc/report';
 
 /** Socrata data updates daily at best; an hour of caching costs nothing and protects the demo. */
@@ -67,6 +69,7 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
   const report = await buildBuildingReport(bbl, bin);
   const facts = report.facts.value;
   const grade = gradeBuilding(report);
+  const rights = rightsFor(report);
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-10 sm:py-14">
@@ -179,6 +182,10 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
           />
         </div>
       </section>
+
+      <div className="mt-6">
+        <TenantRights rights={rights} />
+      </div>
 
       <footer className="mt-10 border-t border-black/10 pt-4 text-xs opacity-50 dark:border-white/15">
         Sourced from NYC Open Data. Figures reflect public filings, not an inspection, and may lag
