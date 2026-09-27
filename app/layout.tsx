@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Archivo, Geist_Mono } from 'next/font/google';
+import { CityMap } from '@/components/map/CityMap';
 import './globals.css';
 
 /*
@@ -33,7 +34,13 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       lang="en"
       className={`${archivo.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-paper text-ink">{children}</body>
+      {/* The map is mounted once here, not per page, so it survives
+          client-side navigation — that continuity between searching, reading a
+          record and coming back is the point of the design. */}
+      <body className="min-h-full bg-city-deep text-ink">
+        <CityMap />
+        {children}
+      </body>
     </html>
   );
 }

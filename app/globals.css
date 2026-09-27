@@ -70,13 +70,14 @@ table,
   font-feature-settings: "tnum" 1;
 }
 
-/* The record surface. It is the page, not a card floating on a dark field —
-   that framing read as a PDF viewer rather than a product. Square corners
-   stay: a municipal form has none, and one radius on every surface is the
-   SaaS-card tell. */
+/* The record surface, lifted over the live city rather than pasted onto a
+   flat dark field. Square corners stay: a municipal form has none, and one
+   radius on every surface is the SaaS-card tell. The shadow does the work a
+   border would, so the sheet reads as physically above the map. */
 .sheet {
   background: var(--color-paper);
   color: var(--color-ink);
+  box-shadow: 0 -2px 60px rgba(0, 0, 0, 0.75);
 }
 
 /* Rules do the structural work that boxes would otherwise do, which keeps the

@@ -6,7 +6,7 @@ import { LandlordPortfolio } from '@/components/LandlordPortfolio';
 import { RentTrend } from '@/components/RentTrend';
 import { StabilizationCard } from '@/components/StabilizationCard';
 import { TenantRights } from '@/components/TenantRights';
-import { BuildingMap } from '@/components/BuildingMap';
+import { FocusOnMount } from '@/components/map/FocusOnMount';
 import { Masthead } from '@/components/doc/Masthead';
 import { Row, Section, Sheet, Unknown } from '@/components/doc/primitives';
 import { gradeBuilding } from '@/lib/grade';
@@ -54,18 +54,22 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
   const footprint = report.footprint.value;
 
   return (
-    <div className="min-h-screen bg-paper">
-      <main className="mx-auto w-full max-w-3xl">
+    <div className="min-h-screen">
+      <main className="relative mx-auto w-full max-w-3xl pb-16">
         {footprint !== null && (
-          <div>
-            <BuildingMap
-              centre={footprint.centre}
-              geometry={footprint.geometry}
-              heightFt={footprint.heightFt}
-              label={label ?? facts?.address ?? bbl}
-            />
-          </div>
+          <FocusOnMount
+            target={{
+              bbl,
+              centre: footprint.centre,
+              geometry: footprint.geometry,
+              heightFt: footprint.heightFt,
+            }}
+          />
         )}
+
+        {/* A window onto the city above the record, so the building the report
+            is about stays visible while you read about it. */}
+        <div className="h-[34vh] min-h-[200px] sm:h-[40vh]" aria-hidden />
 
         <Sheet className="relative">
           <nav className="px-5 pt-5 sm:px-7">
