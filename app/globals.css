@@ -55,7 +55,7 @@
 
 html,
 body {
-  background: var(--color-city-deep);
+  background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -70,12 +70,13 @@ table,
   font-feature-settings: "tnum" 1;
 }
 
-/* A sheet of paper. Square by default: a municipal form has no rounded
-   corners, and giving every surface the same radius is the SaaS-card tell. */
+/* The record surface. It is the page, not a card floating on a dark field —
+   that framing read as a PDF viewer rather than a product. Square corners
+   stay: a municipal form has none, and one radius on every surface is the
+   SaaS-card tell. */
 .sheet {
   background: var(--color-paper);
   color: var(--color-ink);
-  border: 1px solid var(--color-paper-edge);
 }
 
 /* Rules do the structural work that boxes would otherwise do, which keeps the

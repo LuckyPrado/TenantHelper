@@ -1,13 +1,14 @@
 import Link from 'next/link';
+import { Serial } from '@/components/doc/primitives';
 import { geocodeAddress } from '@/lib/nyc/geosearch';
 
 export const metadata = {
-  title: 'Is this building any good? — NYC tenant report',
+  title: 'Before you sign — NYC building records',
 };
 
 const EXAMPLES = [
-  { label: '609 W 180 St', query: '609 West 180 Street Manhattan' },
-  { label: '500 W 175 St', query: '500 West 175 Street Manhattan' },
+  { label: '609 W 180 St', query: '609 West 180 Street Manhattan', note: 'the worst one we found' },
+  { label: '500 W 175 St', query: '500 West 175 Street Manhattan', note: 'rent stabilized' },
 ] as const;
 
 export default async function HomePage({ searchParams }: PageProps<'/'>) {
@@ -16,79 +17,73 @@ export default async function HomePage({ searchParams }: PageProps<'/'>) {
   const result = query.length > 0 ? await geocodeAddress(query) : null;
 
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-5 py-12 sm:py-20">
-      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+    <main className="mx-auto w-full max-w-2xl px-5 py-14 sm:py-24">
+      <h1 className="font-display text-[2.4rem] leading-[0.98] font-700 tracking-[-0.03em] text-ink sm:text-[3.4rem]">
         Before you sign the lease
       </h1>
-      <p className="mt-3 text-base opacity-70">
-        Look up any NYC address and see the building&apos;s violation record, its landlord&apos;s
-        other buildings, and what the area rents for. Every figure links to the public dataset it
-        came from.
+      <p className="mt-4 max-w-xl text-[1rem] leading-relaxed text-ink-soft">
+        Every NYC building has a public record — violations, housing court, evictions, who really
+        owns it. Look up an address and read it before you commit to living there.
       </p>
 
-      <form action="/" method="get" className="mt-8 flex flex-col gap-3 sm:flex-row">
+      <form action="/" method="get" className="mt-9 flex flex-col gap-2 sm:flex-row">
         <input
           type="search"
           name="q"
           defaultValue={query}
           required
-          placeholder="e.g. 500 West 175 Street Manhattan"
+          placeholder="500 West 175 Street Manhattan"
           aria-label="NYC street address"
-          className="flex-1 rounded-md border border-black/15 bg-transparent px-4 py-3 text-base outline-none focus:border-black/50 dark:border-white/20 dark:focus:border-white/50"
+          className="flex-1 border border-ink bg-paper px-4 py-3 text-[1rem] text-ink placeholder:text-ink-faint focus:outline-2 focus:outline-offset-2 focus:outline-ink"
         />
         <button
           type="submit"
-          className="rounded-md bg-foreground px-5 py-3 text-base font-medium text-background"
+          className="border border-ink bg-ink px-6 py-3 text-[1rem] font-600 text-paper transition-colors hover:bg-paper hover:text-ink"
         >
-          Look up
+          Look it up
         </button>
       </form>
 
-      <div className="mt-3 flex flex-wrap gap-2 text-sm opacity-70">
-        <span>Try:</span>
+      <div className="mt-4 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[0.85rem]">
         {EXAMPLES.map((example) => (
-          <Link
-            key={example.query}
-            href={{ pathname: '/', query: { q: example.query } }}
-            className="underline hover:opacity-100"
-          >
-            {example.label}
-          </Link>
+          <span key={example.query}>
+            <Link
+              href={{ pathname: '/', query: { q: example.query } }}
+              className="text-ink underline decoration-dotted underline-offset-2 hover:decoration-solid"
+            >
+              {example.label}
+            </Link>
+            <span className="ml-1.5 text-ink-faint">{example.note}</span>
+          </span>
         ))}
+        <Link
+          href={{ pathname: '/leaderboard' }}
+          className="text-ink underline decoration-dotted underline-offset-2 hover:decoration-solid"
+        >
+          Best and worst by ZIP
+        </Link>
       </div>
 
-      <p className="mt-4 text-sm opacity-70">
-        Or browse{' '}
-        <Link href={{ pathname: '/leaderboard' }} className="underline">
-          the best and worst buildings by ZIP
-        </Link>
-        .
-      </p>
-
       {result !== null && !result.ok && (
-        <p className="mt-8 rounded-md border border-red-500/40 bg-red-500/5 p-4 text-sm">
-          {result.reason}
-        </p>
+        <p className="rule-heavy mt-10 pt-4 text-[0.95rem] text-class-c">{result.reason}</p>
       )}
 
       {result !== null && result.ok && (
-        <section className="mt-8 rounded-lg border border-black/10 p-5 dark:border-white/15">
-          {/* The plan calls for an explicit confirmation step: GeoSearch is fuzzy
-              and answers plausible-looking near misses, so the user verifies the
-              match before we show them a report about someone else's building. */}
-          <div className="text-xs font-medium uppercase tracking-wide opacity-60">
-            Is this the right building?
-          </div>
-          <div className="mt-1 text-lg font-medium">{result.data.label}</div>
-          <div className="mt-1 text-sm opacity-60">
-            BBL {result.data.bbl}
-            {result.data.zip !== null && ` · ${result.data.zip}`}
-            {result.data.matchType !== null && ` · ${result.data.matchType} match`}
+        <section className="rule-heavy mt-10 pt-5">
+          {/* GeoSearch is fuzzy and will answer a near miss confidently, so the
+              match is confirmed before we show a report about someone else's
+              building. */}
+          <div className="text-[1.15rem] font-600 text-ink">{result.data.label}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+            <Serial>BBL {result.data.bbl}</Serial>
+            {result.data.zip !== null && (
+              <span className="text-[0.8rem] text-ink-faint">{result.data.zip}</span>
+            )}
           </div>
 
           {result.data.matchType !== 'exact' && (
-            <p className="mt-3 text-sm opacity-70">
-              This was not an exact match. Check the address above before relying on the report.
+            <p className="mt-3 text-[0.88rem] text-ink-soft">
+              This was not an exact match — check the address before relying on the report.
             </p>
           )}
 
@@ -97,12 +92,18 @@ export default async function HomePage({ searchParams }: PageProps<'/'>) {
               pathname: `/building/${result.data.bbl}`,
               query: { bin: result.data.bin, label: result.data.label },
             }}
-            className="mt-4 inline-block rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background"
+            className="mt-5 inline-block border border-ink bg-ink px-5 py-2.5 text-[0.95rem] font-600 text-paper transition-colors hover:bg-paper hover:text-ink"
           >
-            See the report
+            Read the record
           </Link>
         </section>
       )}
+
+      <p className="mt-16 max-w-xl text-[0.8rem] leading-relaxed text-ink-faint">
+        Built from NYC Open Data — HPD violations, housing court filings, marshals&apos; evictions,
+        property registrations and PLUTO — plus Zillow&apos;s rent index. Every figure on a report
+        links to the dataset it came from.
+      </p>
     </main>
   );
 }

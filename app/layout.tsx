@@ -33,7 +33,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       lang="en"
       className={`${archivo.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-city-deep text-ink">{children}</body>
+      <body className="min-h-full bg-paper text-ink">{children}</body>
     </html>
   );
 }

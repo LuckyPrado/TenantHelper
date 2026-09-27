@@ -142,7 +142,28 @@ export function BuildingMap({ centre, geometry, heightFt, label }: BuildingMapPr
     };
   }, [centre, geometry, heightFt]);
 
-  if (TOKEN === '' || failed) return null;
+  // A missing token is a deployment problem, not a code problem, and silently
+  // rendering nothing makes the two indistinguishable. Say which it is.
+  if (TOKEN === '') {
+    return (
+      <div className="flex h-24 items-center justify-center bg-city-deep px-5 text-center">
+        <p className="text-[0.8rem] text-paper-edge">
+          Map unavailable — NEXT_PUBLIC_MAPBOX_TOKEN was not present when this build ran. Set it,
+          then redeploy without the build cache.
+        </p>
+      </div>
+    );
+  }
+
+  if (failed) {
+    return (
+      <div className="flex h-24 items-center justify-center bg-city-deep px-5 text-center">
+        <p className="text-[0.8rem] text-paper-edge">
+          Map failed to load. The record below is unaffected.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-[42vh] min-h-[260px] w-full overflow-hidden sm:h-[48vh]">

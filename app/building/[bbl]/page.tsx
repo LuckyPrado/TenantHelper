@@ -54,17 +54,10 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
   const footprint = report.footprint.value;
 
   return (
-    <div className="min-h-screen bg-city-deep">
-      <main className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-5 sm:py-8">
-        <Link
-          href="/"
-          className="mb-3 inline-block text-[0.85rem] text-paper-edge underline underline-offset-2 hover:text-paper"
-        >
-          New search
-        </Link>
-
+    <div className="min-h-screen bg-paper">
+      <main className="mx-auto w-full max-w-3xl">
         {footprint !== null && (
-          <div className="mb-[-1.5rem] sm:mb-[-2rem]">
+          <div>
             <BuildingMap
               centre={footprint.centre}
               geometry={footprint.geometry}
@@ -75,6 +68,11 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
         )}
 
         <Sheet className="relative">
+          <nav className="px-5 pt-5 sm:px-7">
+            <Link href="/" className="text-[0.85rem] text-ink-faint underline underline-offset-2 hover:text-ink">
+              New search
+            </Link>
+          </nav>
           <Masthead
             address={label ?? facts?.address ?? `Tax lot ${bbl}`}
             bbl={bbl}
