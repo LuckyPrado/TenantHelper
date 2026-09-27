@@ -31,10 +31,19 @@ function prefersReducedMotion(): boolean {
  * back is the point of the design. Route pages drive it through the command
  * channel in lib/map/store rather than by remounting it.
  */
-export function CityMap() {
+export interface CityMapProps {
+  readonly onHover?: (bbl: string | null, x: number, y: number) => void;
+  readonly onSelect?: (bbl: string) => void;
+}
+
+export function CityMap({ onHover, onSelect }: CityMapProps = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const driftRef = useRef<number | null>(null);
+  // Handlers live in refs so the map is wired once and never rebuilt when the
+  // hover card's state changes.
+  const onHoverRef = useRef<((bbl: string | null, x: number, y: number) => void) | null>(null);
+  const onSelectRef = useRef<((bbl: string) => void) | null>(null);
   const userTookOverRef = useRef(false);
   const [status, setStatus] = useState<'loading' | 'ready' | 'no-token' | 'no-webgl' | 'failed'>(
     TOKEN === '' ? 'no-token' : 'loading',
@@ -75,7 +84,56 @@ export function CityMap() {
       mapRef.current = map;
       map.on('error', () => setStatus('failed'));
       map.on('load', () => onLoad(map as mapboxgl.Map));
+
+      // The drift is an invitation, not a ride: the first touch hands control
+      // over for good. Previously this was declared but never attached, so the
+      // camera kept rotating under the user.
+      const takeOver = () => {
+        userTookOverRef.current = true;
+        stopDrift();
+      };
+      for (const event of ['dragstart', 'wheel', 'mousedown', 'touchstart'] as const) {
+        map.on(event, takeOver);
+      }
     });
+
+    let loadTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastKey = '';
+
+    /** Debounced: panning should not fire a request per frame. */
+    function loadViewport(map: mapboxgl.Map) {
+      if (loadTimer !== null) clearTimeout(loadTimer);
+      loadTimer = setTimeout(() => void loadViewportNow(map), 350);
+    }
+
+    /** Fetch the buildings in view, skipping a viewport we already loaded. */
+    async function loadViewportNow(map: mapboxgl.Map) {
+      {
+        if (map.getZoom() < 14) {
+          (map.getSource(SAMPLE_SOURCE) as mapboxgl.GeoJSONSource | undefined)?.setData(EMPTY);
+          return;
+        }
+        const b = map.getBounds();
+        if (b === null) return;
+        const key = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]
+          .map((n) => n.toFixed(3))
+          .join(',');
+        if (key === lastKey) return;
+        lastKey = key;
+
+        try {
+          const response = await fetch(
+            `/api/map/buildings?w=${b.getWest()}&s=${b.getSouth()}&e=${b.getEast()}&n=${b.getNorth()}`,
+          );
+          if (!response.ok) return;
+          const data = (await response.json()) as GeoJSON.FeatureCollection;
+          const source = map.getSource(SAMPLE_SOURCE) as mapboxgl.GeoJSONSource | undefined;
+          source?.setData(data);
+        } catch {
+          // A failed viewport fetch just means no highlights; the map is fine.
+        }
+      }
+    }
 
     function stopDrift() {
       if (driftRef.current !== null) {
@@ -102,6 +160,16 @@ export function CityMap() {
 
     function onLoad(map: mapboxgl.Map) {
       setStatus('ready');
+      try {
+        buildLayers(map);
+      } catch (error) {
+        // Without this, one bad layer definition aborts the rest of setup and
+        // the map looks fine while half its behaviour is missing.
+        console.error('[map] layer setup failed', error);
+      }
+    }
+
+    function buildLayers(map: mapboxgl.Map) {
 
       const labelLayer = map
         .getStyle()
@@ -136,12 +204,41 @@ export function CityMap() {
         source: SAMPLE_SOURCE,
         type: 'fill-extrusion',
         paint: {
+          // A plain colour at creation. A feature-state expression here throws
+          // on a source with no feature ids, which aborted the rest of onLoad
+          // and silently cost us the hover handlers and the viewport loader.
+          // The stabilized toggle recolours this with setPaintProperty instead.
           'fill-extrusion-color': '#8fb3c7',
           'fill-extrusion-height': ['get', 'height'],
           'fill-extrusion-base': 0,
-          'fill-extrusion-opacity': 0.55,
+          'fill-extrusion-opacity': 0.6,
         },
       });
+
+      // Hovering a building is how you find out it is worth opening.
+      map.on('mousemove', 'sample-fill', (event) => {
+        map.getCanvas().style.cursor = 'pointer';
+        const feature = event.features?.[0];
+        const bbl = feature?.properties?.bbl;
+        if (typeof bbl === 'string') onHoverRef.current?.(bbl, event.point.x, event.point.y);
+      });
+      map.on('mouseleave', 'sample-fill', () => {
+        map.getCanvas().style.cursor = '';
+        onHoverRef.current?.(null, 0, 0);
+      });
+      map.on('click', 'sample-fill', (event) => {
+        const bbl = event.features?.[0]?.properties?.bbl;
+        if (typeof bbl === 'string') onSelectRef.current?.(bbl);
+      });
+
+      // Load what is in view, and again whenever the user stops moving.
+      // Only user-driven movement triggers a reload. The idle drift also emits
+      // moveend, and letting it through reset the debounce on every frame so
+      // the fetch never fired at all.
+      map.on('moveend', () => {
+        if (userTookOverRef.current) loadViewport(map);
+      });
+      loadViewportNow(map);
 
       // The building being reported on.
       map.addLayer({
@@ -167,19 +264,21 @@ export function CityMap() {
       startDrift(map);
     }
 
-    const takeOver = () => {
-      userTookOverRef.current = true;
-      stopDrift();
-    };
-
     return () => {
       cancelled = true;
       stopDrift();
       map?.remove();
       mapRef.current = null;
-      void takeOver;
     };
   }, []);
+
+  // Kept in an effect, not assigned during render: mutating a ref while
+  // rendering is unsafe under concurrent rendering, and these only need to be
+  // current by the time a pointer event fires.
+  useEffect(() => {
+    onHoverRef.current = onHover ?? null;
+    onSelectRef.current = onSelect ?? null;
+  }, [onHover, onSelect]);
 
   // React to mode changes published by route pages.
   useEffect(() => {
@@ -216,7 +315,14 @@ export function CityMap() {
     return subscribeToStabilized((on) => {
       const map = mapRef.current;
       if (map?.getLayer('sample-fill') === undefined) return;
-      map.setPaintProperty('sample-fill', 'fill-extrusion-color', on ? '#4ade80' : '#8fb3c7');
+      // Recolour only the buildings the data says are stabilized, rather than
+      // tinting the whole layer.
+      map.setPaintProperty('sample-fill', 'fill-extrusion-color', [
+        'case',
+        ['all', on, ['get', 'stabilized']],
+        '#4ade80',
+        on ? '#2b3a46' : '#8fb3c7',
+      ]);
     });
   }, []);
 
