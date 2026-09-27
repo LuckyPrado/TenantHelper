@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Archivo, Geist_Mono } from 'next/font/google';
 import { CityMap } from '@/components/map/CityMap';
+import { resolveSiteUrl } from '@/lib/siteUrl';
 import './globals.css';
 
 /*
@@ -22,10 +23,35 @@ const geistMono = Geist_Mono({
   weight: ['400', '500'],
 });
 
+const SITE_URL = resolveSiteUrl();
+const DESCRIPTION =
+  'Look up any NYC address and see the building’s violation record, its landlord’s other buildings, and what the area rents for.';
+
 export const metadata: Metadata = {
-  title: 'Before you sign — NYC building records',
-  description:
-    'Look up any NYC address and see the building’s violation record, its landlord’s other buildings, and what the area rents for.',
+  // Absolute base for canonical links and Open Graph. Comes from the
+  // deployment rather than a constant, so attaching the custom domain is a DNS
+  // change and nothing in the code.
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'Know Your Building — NYC building records',
+    template: '%s · Know Your Building',
+  },
+  description: DESCRIPTION,
+  applicationName: 'Know Your Building',
+  openGraph: {
+    type: 'website',
+    siteName: 'Know Your Building',
+    title: 'Know Your Building',
+    description: DESCRIPTION,
+    url: SITE_URL,
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Know Your Building',
+    description: DESCRIPTION,
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
