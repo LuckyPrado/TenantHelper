@@ -65,9 +65,12 @@ label "community-sourced, unofficial," never state as legal fact.
 - **Building grade only** — the landlord grade is shelved. Print the grade's inputs, thresholds and
   weights on screen beside it, each linking to its dataset. Auditable in ten seconds, or it doesn't ship.
 - **Landlord = facts only.** "Also runs N buildings, X combined open violations." No judgment.
-- **No ML predictions.** Stabilized → RGB published cap (a rule). Unstabilized → ZORI trend with the
-  method printed. No model, no black-box score.
+- **No ML predictions, and no composite 0–100 score.** Stabilized → RGB published cap (a rule).
+  Unstabilized → ZORI trend with the method printed. A black box collapses the moment a judge asks
+  how it is weighted.
 - Every displayed number links to its source dataset.
+- Prior art: JustFix *Who Owns What* uses the same data. Know it. We are tenant-decision-first with
+  per-unit normalization; it is landlord-portfolio-first.
 
 ## Sponsor tracks + drop order
 
@@ -107,15 +110,6 @@ HPD contacts (`feu5-w2e2`) on managing agent → **13**. Always use the agent/of
   render as zero** — that is the same silent-failure class as trap 1
 - Tests (Vitest, colocated): `lib/nyc/bbl.ts` and the fetchers only
 - Server handlers log dataset id + key + ms per upstream call
-
-## Product rules
-
-- **No composite 0–100 score.** Rule-based flags with explicitly stated thresholds instead
-  ("2 flags: >1 open violation/unit · active litigation"). A black box collapses when a judge asks
-  how it's weighted.
-- Every number displayed links to its source dataset.
-- Prior art: JustFix *Who Owns What* uses the same data. Know it. We're tenant-decision-first with
-  per-unit normalization; it's landlord-portfolio-first.
 
 ## ECC notes
 
