@@ -52,3 +52,7 @@ yarn-error.log*
 .claude/settings.local.json
 .claude/state/
 .claude/metrics/
+
+# local visual-check harness
+shot*.mjs
+shot-*.png

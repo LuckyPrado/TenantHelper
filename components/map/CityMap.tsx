@@ -214,7 +214,11 @@ export function CityMap() {
 
   return (
     <div className="fixed inset-0 z-0 bg-city-deep" aria-hidden={status !== 'ready'}>
-      <div ref={containerRef} className="absolute inset-0" />
+      {/* h-full, not `absolute inset-0`: mapbox-gl.css sets position:relative
+          on .mapboxgl-map once the map initialises, which overrides absolute
+          positioning and collapses inset-0 to zero height. The canvas then
+          falls back to 300px and the city is invisible. */}
+      <div ref={containerRef} className="h-full w-full" />
       {status === 'no-token' && (
         <div className="absolute inset-x-0 bottom-6 flex justify-center px-6">
           <p className="max-w-md text-center text-[0.78rem] leading-snug text-paper-edge/70">

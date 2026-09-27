@@ -106,12 +106,23 @@ export function Landing() {
         </button>
       </nav>
 
+      {/* The city is busy with street labels, so the centre content needs its
+          own ground to sit on. A soft radial scrim darkens just behind the
+          type without flattening the map or hiding the skyline. */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 60% 48% at 50% 46%, rgba(7,10,14,0.92) 0%, rgba(7,10,14,0.72) 45%, rgba(7,10,14,0) 100%)',
+        }}
+      />
+
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-5">
         <div className="pointer-events-auto w-full max-w-xl text-center" data-overlay>
-          <h1 className="font-display text-[2.9rem] leading-[0.95] font-700 tracking-[-0.035em] text-paper drop-shadow-[0_2px_24px_rgba(0,0,0,0.9)] sm:text-[4.6rem]">
+          <h1 className="font-display text-[2.9rem] leading-[0.95] font-700 tracking-[-0.035em] text-paper sm:text-[4.6rem]">
             Know Your Building
           </h1>
-          <p className="mx-auto mt-4 max-w-md text-[0.98rem] leading-relaxed text-paper/80 drop-shadow-[0_1px_12px_rgba(0,0,0,0.9)]">
+          <p className="mx-auto mt-4 max-w-md text-[0.98rem] leading-relaxed text-paper/85">
             Every building in New York has a public record. Read it before you sign the lease.
           </p>
 
@@ -135,7 +146,7 @@ export function Landing() {
           </form>
 
           {error !== null && (
-            <p className="mt-3 text-[0.85rem] text-paper/90 drop-shadow-[0_1px_8px_rgba(0,0,0,0.9)]">
+            <p className="mt-3 text-[0.85rem] text-paper/90">
               {error}
             </p>
           )}
