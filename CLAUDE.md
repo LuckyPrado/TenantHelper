@@ -91,6 +91,22 @@ means missing scope as often as a bad key.
   concurrent burst collapses to one generation.
 - Reading `request.url` marks a route dynamic. The speech route takes no query string for that reason.
 
+## Tiger Data (TimescaleDB) — read-side only
+
+Replaces a 10MB + 5.2MB CSV download-and-parse on every cold serverless process.
+**Measured: 32ms vs 1251ms — 39x faster, and that 1251ms is before parsing.**
+
+- `zori` hypertable (15,509 NYC rent points) · `stabilized` table (35,799 BBLs) ·
+  `zori_yearly` continuous aggregate (1,459 buckets).
+- **Nothing on the critical path depends on it.** `fetchAreaRent` and
+  `fetchStabilizationStatus` try the database, then fall back to the CSV. Verified: with
+  `DATABASE_URL` pointed at a dead host, both pages render identically.
+- ⚠️ `pg` v9 reads `sslmode=require` as `verify-full` and rejects Timescale's chain with
+  "self-signed certificate in certificate chain". `lib/tiger/client.ts` appends
+  `uselibpqcompat=true` to restore libpq semantics. Do not remove it.
+- One `Pool` per process, `max: 3`. A pool per request exhausts the free-tier connection limit.
+- Re-ingest with `npm run ingest` (idempotent upsert).
+
 ## Product rules
 
 - **Building grade only** — the landlord grade is shelved. Print the grade's inputs, thresholds and

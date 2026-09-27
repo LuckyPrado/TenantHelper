@@ -10,6 +10,7 @@
  * far larger than its default entry limit.
  */
 
+import { readRentSeries } from '../tiger/reads';
 import { fail, ok, type Result } from './result';
 
 const ZORI_URL =
@@ -170,15 +171,30 @@ function summarise(zip: string, points: readonly RentPoint[]): AreaRent {
   };
 }
 
-/** Area rent and trend for one ZIP. */
+/**
+ * Area rent and trend for one ZIP.
+ *
+ * Tiger Data first: it answers from an indexed hypertable instead of pulling
+ * and parsing a 10MB CSV on every cold process. Falls back to the CSV whenever
+ * the database is unconfigured, unreachable, or has no row for this ZIP, so the
+ * database is an optimisation rather than a dependency.
+ *
+ * `fetchImpl` being supplied means a test is driving the CSV path explicitly,
+ * so the database is skipped in that case.
+ */
 export async function fetchAreaRent(
   zip: string,
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl?: typeof fetch,
 ): Promise<Result<AreaRent>> {
   const trimmed = zip.trim();
   if (!NYC_ZIP.test(trimmed)) return fail(`${zip} is not a NYC ZIP code.`);
 
-  const loaded = await loadZori(fetchImpl);
+  if (fetchImpl === undefined) {
+    const fromDb = await readRentSeries(trimmed);
+    if (fromDb !== null) return ok(summarise(trimmed, fromDb));
+  }
+
+  const loaded = await loadZori(fetchImpl ?? fetch);
   if (!loaded.ok) return loaded;
 
   const points = loaded.data.get(trimmed);

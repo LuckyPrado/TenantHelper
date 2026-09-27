@@ -202,3 +202,44 @@ describe('live: leaderboard', () => {
     expect(result.data.best[0].openViolations).toBe(0);
   });
 });
+
+describe('live: Tiger Data', () => {
+  it('serves area rent from the hypertable, matching the CSV', async () => {
+    const { fetchAreaRent } = await import('./zori');
+    const { isTigerConfigured } = await import('../tiger/client');
+    if (!isTigerConfigured()) return;
+
+    const t0 = Date.now();
+    const fromDb = await fetchAreaRent('10033');
+    const dbMs = Date.now() - t0;
+
+    expect(fromDb.ok).toBe(true);
+    if (!fromDb.ok) return;
+    console.log(`  tiger area rent: $${Math.round(fromDb.data.latest.rent)} in ${dbMs}ms`);
+    expect(fromDb.data.latest.rent).toBeGreaterThan(2500);
+    expect(fromDb.data.series.length).toBeGreaterThan(24);
+    expect(fromDb.data.yearOverYearPct).not.toBeNull();
+  });
+
+  it('serves stabilization from the indexed table', async () => {
+    const { readStabilization } = await import('../tiger/reads');
+    const { isTigerConfigured } = await import('../tiger/client');
+    if (!isTigerConfigured()) return;
+
+    // 500 W 175 St is stabilized; 609 W 180 St is not. Same answers the CSV gives.
+    expect((await readStabilization('1021310044'))?.isStabilized).toBe(true);
+    expect((await readStabilization('1021620074'))?.isStabilized).toBe(false);
+  });
+
+  it('serves the continuous aggregate', async () => {
+    const { readYearlyRent } = await import('../tiger/reads');
+    const { isTigerConfigured } = await import('../tiger/client');
+    if (!isTigerConfigured()) return;
+
+    const yearly = await readYearlyRent('10033');
+    expect(yearly).not.toBeNull();
+    if (yearly === null) return;
+    console.log(`  tiger yearly buckets for 10033: ${yearly.length}`);
+    expect(yearly.length).toBeGreaterThan(5);
+  });
+});

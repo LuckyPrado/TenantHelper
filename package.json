@@ -10,16 +10,19 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "smoke": "vitest run --config vitest.live.config.ts"
+    "smoke": "vitest run --config vitest.live.config.ts",
+    "ingest": "node scripts/ingest-tiger.mjs"
   },
   "dependencies": {
     "next": "16.3.6",
+    "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24.19.0",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

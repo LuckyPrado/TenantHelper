@@ -12,6 +12,7 @@
  */
 
 import { normalizeBbl } from './bbl';
+import { readStabilization } from '../tiger/reads';
 import { fail, ok, type Result } from './result';
 import { splitCsvLine } from './zori';
 
@@ -139,7 +140,7 @@ async function loadStabilized(
  */
 export async function fetchStabilizationStatus(
   bbl: string,
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl?: typeof fetch,
 ): Promise<Result<StabilizationStatus>> {
   let normalized: string;
   try {
@@ -148,7 +149,17 @@ export async function fetchStabilizationStatus(
     return fail(error instanceof Error ? error.message : String(error));
   }
 
-  const loaded = await loadStabilized(fetchImpl);
+  // Tiger Data first: a point lookup instead of a 5.2MB download and parse.
+  // A null means we could not ask, which is different from "not listed" — the
+  // latter is a real answer and is returned as isStabilized: false.
+  if (fetchImpl === undefined) {
+    const fromDb = await readStabilization(normalized);
+    if (fromDb !== null) {
+      return ok({ bbl: normalized, isStabilized: fromDb.isStabilized, buildingClass: fromDb.buildingClass });
+    }
+  }
+
+  const loaded = await loadStabilized(fetchImpl ?? fetch);
   if (!loaded.ok) return loaded;
 
   const isStabilized = loaded.data.has(normalized);
