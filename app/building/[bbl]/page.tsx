@@ -6,6 +6,7 @@ import { LandlordPortfolio } from '@/components/LandlordPortfolio';
 import { RentTrend } from '@/components/RentTrend';
 import { StabilizationCard } from '@/components/StabilizationCard';
 import { TenantRights } from '@/components/TenantRights';
+import { AerialViews } from '@/components/doc/AerialViews';
 import { FocusOnMount } from '@/components/map/FocusOnMount';
 import { Masthead } from '@/components/doc/Masthead';
 import { Row, Section, Sheet, Unknown } from '@/components/doc/primitives';
@@ -91,6 +92,12 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
           <Suspense fallback={<SummarySkeleton />}>
             <BuildingSummary report={report} grade={grade} />
           </Suspense>
+
+          <AerialViews
+            centre={footprint?.centre ?? null}
+            geometry={footprint?.geometry}
+            address={label ?? facts?.address ?? `Tax lot ${bbl}`}
+          />
 
           {open !== undefined && (
             <Section

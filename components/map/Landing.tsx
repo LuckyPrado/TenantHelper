@@ -56,10 +56,10 @@ export function Landing() {
     >
       <nav className="pointer-events-auto absolute top-0 left-0 p-4 sm:p-6">
         <Link
-          href="/leaderboard"
+          href="/rights"
           className="border border-ink/30 bg-city-deep/70 px-3 py-1.5 text-[0.82rem] text-ink backdrop-blur-sm transition-colors hover:border-ink hover:bg-ink hover:text-city-deep"
         >
-          Best and worst by ZIP
+          Know your rights
         </Link>
       </nav>
 

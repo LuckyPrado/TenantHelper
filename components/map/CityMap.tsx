@@ -31,6 +31,129 @@ const NYC_BOUNDS: [[number, number], [number, number]] = [
 const SUBJECT_SOURCE = 'subject';
 const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
 
+/** How the camera frames the building it is about. */
+const FOCUS = { zoom: 18.6, pitch: 52, bearing: -28 } as const;
+
+/** Neighbours further out than this cannot block the view at FOCUS.pitch. */
+const NEIGHBOUR_RADIUS_M = 90;
+/** Anything this close to the centre is the subject itself, not a neighbour. */
+const SELF_RADIUS_M = 14;
+/** Compass sectors tested for a clear line of sight. 30 degrees each. */
+const SECTORS = 12;
+/** Below this, swinging the camera costs more in motion than it gains in view. */
+const MIN_WORTHWHILE_SWING_DEG = 20;
+
+const METRES_PER_DEG_LAT = 111_320;
+
+/** Block-scale distance. Equirectangular is exact enough over ninety metres. */
+function metresBetween(a: readonly [number, number], b: readonly [number, number]): number {
+  const midLat = ((a[1] + b[1]) / 2) * (Math.PI / 180);
+  const x = (b[0] - a[0]) * Math.cos(midLat) * METRES_PER_DEG_LAT;
+  const y = (b[1] - a[1]) * METRES_PER_DEG_LAT;
+  return Math.hypot(x, y);
+}
+
+/** Compass bearing from a to b, degrees clockwise from north. */
+function bearingFrom(a: readonly [number, number], b: readonly [number, number]): number {
+  const midLat = ((a[1] + b[1]) / 2) * (Math.PI / 180);
+  const x = (b[0] - a[0]) * Math.cos(midLat);
+  const y = b[1] - a[1];
+  return (Math.atan2(x, y) * (180 / Math.PI) + 360) % 360;
+}
+
+function centroidOfGeometry(geometry: GeoJSON.Geometry): readonly [number, number] | null {
+  if (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon') return null;
+  let sumX = 0;
+  let sumY = 0;
+  let count = 0;
+  const walk = (node: unknown): void => {
+    if (!Array.isArray(node)) return;
+    if (typeof node[0] === 'number' && typeof node[1] === 'number') {
+      sumX += node[0];
+      sumY += node[1];
+      count += 1;
+      return;
+    }
+    for (const child of node) walk(child);
+  };
+  walk(geometry.coordinates);
+  return count === 0 ? null : [sumX / count, sumY / count];
+}
+
+/**
+ * The compass bearing that looks at the building from its least obstructed side.
+ *
+ * A camera at 48 degrees of pitch sits low, so one tall neighbour on the wrong
+ * side hides the building the whole report is about. This buckets the
+ * surrounding buildings by direction, scores each by height over distance —
+ * near-and-tall blocks far more than far-and-tall — and puts the camera in the
+ * clearest sector.
+ *
+ * Returns null when nothing is rendered yet, in which case the caller keeps the
+ * bearing it already has rather than swinging somewhere arbitrary.
+ */
+function clearestBearing(
+  map: mapboxgl.Map,
+  centre: readonly [number, number],
+  subjectHeightM: number,
+): number | null {
+  if (map.getLayer('city-buildings') === undefined) return null;
+
+  const origin = map.project(centre as [number, number]);
+  const reach = 400;
+  let features: mapboxgl.MapboxGeoJSONFeature[];
+  try {
+    features = map.queryRenderedFeatures(
+      [
+        [origin.x - reach, origin.y - reach],
+        [origin.x + reach, origin.y + reach],
+      ],
+      { layers: ['city-buildings'] },
+    );
+  } catch {
+    return null;
+  }
+  if (features.length === 0) return null;
+
+  const blocking = new Array<number>(SECTORS).fill(0);
+  let sawNeighbour = false;
+
+  for (const feature of features) {
+    const neighbour = centroidOfGeometry(feature.geometry);
+    if (neighbour === null) continue;
+
+    const distance = metresBetween(centre, neighbour);
+    if (distance < SELF_RADIUS_M || distance > NEIGHBOUR_RADIUS_M) continue;
+
+    const rawHeight = feature.properties?.height;
+    const height = typeof rawHeight === 'number' ? rawHeight : 0;
+    // Only what stands taller than the subject can hide it.
+    if (height <= subjectHeightM) continue;
+
+    sawNeighbour = true;
+    const sector = Math.floor(bearingFrom(centre, neighbour) / (360 / SECTORS)) % SECTORS;
+    const score = (height - subjectHeightM) / Math.max(distance, 1);
+    if (score > blocking[sector]) blocking[sector] = score;
+  }
+
+  if (!sawNeighbour) return null;
+
+  let clearest = 0;
+  for (let sector = 1; sector < SECTORS; sector += 1) {
+    if (blocking[sector] < blocking[clearest]) clearest = sector;
+  }
+
+  // The camera sits opposite whatever is 'up' on screen, so putting it in the
+  // clear sector means pointing the bearing back across the building.
+  const cameraDirection = clearest * (360 / SECTORS) + 360 / SECTORS / 2;
+  return (cameraDirection + 180) % 360;
+}
+
+/** Smallest angle between two bearings, degrees. */
+function angleBetween(a: number, b: number): number {
+  return Math.abs((((a - b) % 360) + 540) % 360 - 180);
+}
+
 /**
  * Point the camera at whatever the current route has selected.
  *
@@ -54,17 +177,40 @@ function applyMode(map: mapboxgl.Map | null, mode: MapMode): void {
     properties: { height: (mode.target.heightFt ?? 60) * FT_TO_M },
     geometry: mode.target.geometry as GeoJSON.Geometry,
   });
+  const heightM = (mode.target.heightFt ?? 60) * FT_TO_M;
+
   map.flyTo({
     center: [mode.target.centre[0], mode.target.centre[1]],
-    zoom: 17,
-    pitch: 62,
-    bearing: -28,
+    zoom: FOCUS.zoom,
+    pitch: FOCUS.pitch,
+    bearing: FOCUS.bearing,
     duration: 3200,
     essential: true,
     // The record occupies the lower two thirds of the screen, so lift the
     // building into the clear space above it rather than centring it behind
     // the panel.
     offset: [0, -200],
+  });
+
+  // Once the flight has landed and the surrounding tiles are in, swing to
+  // whichever side of the building is not behind a taller neighbour. This runs
+  // after arrival because the neighbours have to be rendered before they can be
+  // measured, and it runs once: easeTo has no listener of its own, so there is
+  // no loop.
+  map.once('idle', () => {
+    const still = getMapMode();
+    if (still.kind !== 'focus' || still.target.bbl !== mode.target.bbl) return;
+
+    const better = clearestBearing(map, mode.target.centre, heightM);
+    if (better === null) return;
+    if (angleBetween(better, map.getBearing()) < MIN_WORTHWHILE_SWING_DEG) return;
+
+    map.easeTo({
+      bearing: better,
+      duration: 1600,
+      essential: true,
+      offset: [0, -200],
+    });
   });
 }
 
@@ -216,7 +362,7 @@ export function CityMap() {
           ...HOME,
           maxBounds: NYC_BOUNDS,
           minZoom: 11,
-          maxZoom: 18,
+          maxZoom: 20,
           attributionControl: false,
           antialias: true,
         });
