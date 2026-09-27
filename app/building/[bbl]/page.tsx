@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { LandlordPortfolio } from '@/components/LandlordPortfolio';
 import { RentTrend } from '@/components/RentTrend';
 import { StabilizationCard } from '@/components/StabilizationCard';
 import { StatCard } from '@/components/StatCard';
@@ -132,6 +133,10 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
 
       <div className="mt-6">
         <StabilizationCard source={report.stabilization} areaRent={report.areaRent} />
+      </div>
+
+      <div className="mt-6">
+        <LandlordPortfolio source={report.landlord} currentBbl={bbl} />
       </div>
 
       <section className="mt-8">

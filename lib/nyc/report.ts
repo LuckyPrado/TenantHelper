@@ -14,6 +14,7 @@ import { fetchBedbugCount } from './bedbugs';
 import { fetchDobViolationCount } from './dobViolations';
 import { fetchEvictionCount } from './evictions';
 import { fetchHpdViolations, type HpdViolationSummary } from './hpdViolations';
+import { fetchLandlord, type Landlord } from './landlord';
 import { fetchLitigationCount } from './litigations';
 import { fetchBuildingFacts, type BuildingFacts } from './pluto';
 import type { Result } from './result';
@@ -38,6 +39,8 @@ export interface BuildingReport {
   readonly areaRent: SourceValue<AreaRent>;
   /** Community-sourced list membership. A strong signal, not legal fact. */
   readonly stabilization: SourceValue<StabilizationStatus>;
+  /** Who runs the building and what else they run. Facts only, no grade. */
+  readonly landlord: SourceValue<Landlord>;
   /** Open HPD violations divided by residential units — the product's core metric. */
   readonly openViolationsPerUnit: number | null;
   readonly generatedAt: string;
@@ -69,8 +72,16 @@ export async function buildBuildingReport(
   bbl: string,
   bin: string | null = null,
 ): Promise<BuildingReport> {
-  const [facts, violations, litigations, evictions, bedbugs, dobViolations, stabilization] =
-    await Promise.all([
+  const [
+    facts,
+    violations,
+    litigations,
+    evictions,
+    bedbugs,
+    dobViolations,
+    stabilization,
+    landlord,
+  ] = await Promise.all([
     fetchBuildingFacts(bbl),
     fetchHpdViolations(bbl),
     fetchLitigationCount(bbl),
@@ -78,6 +89,7 @@ export async function buildBuildingReport(
     fetchBedbugCount(bbl),
     bin === null ? Promise.resolve(null) : fetchDobViolationCount(bin),
     fetchStabilizationStatus(bbl),
+    fetchLandlord(bbl),
   ]);
 
   const factsValue = settle(facts);
@@ -107,6 +119,7 @@ export async function buildBuildingReport(
     dobViolations: dobViolations === null ? UNKNOWN_BIN : settle(dobViolations),
     areaRent,
     stabilization: settle(stabilization),
+    landlord: settle(landlord),
     openViolationsPerUnit,
     generatedAt: new Date().toISOString(),
   };

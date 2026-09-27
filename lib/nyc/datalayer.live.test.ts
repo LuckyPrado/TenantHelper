@@ -170,3 +170,19 @@ describe('live: rent stabilization', () => {
     expect(result.ok).toBe(true);
   });
 });
+
+describe('live: landlord portfolio', () => {
+  it('finds the real portfolio via the agent join, not the owner LLC', async () => {
+    const { fetchLandlord } = await import('./landlord');
+
+    const result = await fetchLandlord(REF.bbl);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // PLUTO ownername finds 1 building for this landlord; the managing agent
+    // finds 13. If this drops to 1, the agent join has regressed.
+    expect(result.data.portfolio.length).toBeGreaterThan(5);
+    expect(result.data.portfolioKey?.name).toMatch(/LANGSAM/);
+    expect(result.data.portfolioOpenViolations).toBeGreaterThan(500);
+  });
+});
