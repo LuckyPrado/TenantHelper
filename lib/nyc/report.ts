@@ -13,6 +13,7 @@
 import { fetchBedbugCount } from './bedbugs';
 import { fetchDobViolationCount } from './dobViolations';
 import { fetchEvictionCount } from './evictions';
+import { fetchFootprint, type Footprint } from './footprint';
 import { fetchHpdViolations, type HpdViolationSummary } from './hpdViolations';
 import { fetchLandlord, type Landlord } from './landlord';
 import { fetchLitigationCount } from './litigations';
@@ -41,6 +42,8 @@ export interface BuildingReport {
   readonly stabilization: SourceValue<StabilizationStatus>;
   /** Who runs the building and what else they run. Facts only, no grade. */
   readonly landlord: SourceValue<Landlord>;
+  /** Building outline, so the map can highlight it from any angle. */
+  readonly footprint: SourceValue<Footprint>;
   /** Open HPD violations divided by residential units — the product's core metric. */
   readonly openViolationsPerUnit: number | null;
   readonly generatedAt: string;
@@ -81,6 +84,7 @@ export async function buildBuildingReport(
     dobViolations,
     stabilization,
     landlord,
+    footprint,
   ] = await Promise.all([
     fetchBuildingFacts(bbl),
     fetchHpdViolations(bbl),
@@ -90,6 +94,7 @@ export async function buildBuildingReport(
     bin === null ? Promise.resolve(null) : fetchDobViolationCount(bin),
     fetchStabilizationStatus(bbl),
     fetchLandlord(bbl),
+    bin === null ? Promise.resolve(null) : fetchFootprint(bin),
   ]);
 
   const factsValue = settle(facts);
@@ -120,6 +125,10 @@ export async function buildBuildingReport(
     areaRent,
     stabilization: settle(stabilization),
     landlord: settle(landlord),
+    footprint:
+      footprint === null
+        ? { value: null, error: 'No BIN for this address, so the outline cannot be drawn.' }
+        : settle(footprint),
     openViolationsPerUnit,
     generatedAt: new Date().toISOString(),
   };

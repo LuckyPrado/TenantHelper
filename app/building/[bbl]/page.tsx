@@ -6,6 +6,7 @@ import { LandlordPortfolio } from '@/components/LandlordPortfolio';
 import { RentTrend } from '@/components/RentTrend';
 import { StabilizationCard } from '@/components/StabilizationCard';
 import { TenantRights } from '@/components/TenantRights';
+import { BuildingMap } from '@/components/BuildingMap';
 import { Masthead } from '@/components/doc/Masthead';
 import { Row, Section, Sheet, Unknown } from '@/components/doc/primitives';
 import { gradeBuilding } from '@/lib/grade';
@@ -50,6 +51,7 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
   const grade = gradeBuilding(report);
   const rights = rightsFor(report);
   const open = report.violations.value?.open;
+  const footprint = report.footprint.value;
 
   return (
     <div className="min-h-screen bg-city-deep">
@@ -61,7 +63,18 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
           New search
         </Link>
 
-        <Sheet>
+        {footprint !== null && (
+          <div className="mb-[-1.5rem] sm:mb-[-2rem]">
+            <BuildingMap
+              centre={footprint.centre}
+              geometry={footprint.geometry}
+              heightFt={footprint.heightFt}
+              label={label ?? facts?.address ?? bbl}
+            />
+          </div>
+        )}
+
+        <Sheet className="relative">
           <Masthead
             address={label ?? facts?.address ?? `Tax lot ${bbl}`}
             bbl={bbl}
