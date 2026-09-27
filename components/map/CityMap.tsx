@@ -4,6 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { getMapMode, subscribeToMap, type MapMode } from '@/lib/map/store';
+import {
+  SECTORS,
+  angleBetween,
+  chooseCameraBearing,
+  focusOffsetY,
+  footprintExtentMetres,
+  zoomForBuilding,
+} from '@/lib/map/framing';
 
 const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? '';
 
@@ -31,17 +39,13 @@ const NYC_BOUNDS: [[number, number], [number, number]] = [
 const SUBJECT_SOURCE = 'subject';
 const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] };
 
-/** How the camera frames the building it is about. */
-const FOCUS = { zoom: 18.6, pitch: 52, bearing: -28 } as const;
+/** Pitch and default bearing. Zoom is computed per building, not fixed. */
+const FOCUS = { pitch: 52, bearing: -28 } as const;
 
 /** Neighbours further out than this cannot block the view at FOCUS.pitch. */
 const NEIGHBOUR_RADIUS_M = 90;
 /** Anything this close to the centre is the subject itself, not a neighbour. */
 const SELF_RADIUS_M = 14;
-/** Compass sectors tested for a clear line of sight. 30 degrees each. */
-const SECTORS = 12;
-/** Below this, swinging the camera costs more in motion than it gains in view. */
-const MIN_WORTHWHILE_SWING_DEG = 20;
 
 const METRES_PER_DEG_LAT = 111_320;
 
@@ -81,22 +85,21 @@ function centroidOfGeometry(geometry: GeoJSON.Geometry): readonly [number, numbe
 }
 
 /**
- * The compass bearing that looks at the building from its least obstructed side.
+ * How obstructed the view is from each compass sector around the building.
  *
- * A camera at 48 degrees of pitch sits low, so one tall neighbour on the wrong
- * side hides the building the whole report is about. This buckets the
- * surrounding buildings by direction, scores each by height over distance —
- * near-and-tall blocks far more than far-and-tall — and puts the camera in the
- * clearest sector.
+ * Every neighbour is scored by height over distance — the tangent of the angle
+ * it subtends, so near-and-low blocks as much as far-and-tall. Deliberately
+ * NOT filtered to buildings taller than the subject: that was the earlier
+ * mistake, and it meant a tall building had no neighbours worth scoring, every
+ * sector tied at zero, and the camera swung somewhere arbitrary.
  *
- * Returns null when nothing is rendered yet, in which case the caller keeps the
- * bearing it already has rather than swinging somewhere arbitrary.
+ * Returns null when nothing is rendered yet, so the caller keeps the bearing
+ * it has rather than acting on an empty measurement.
  */
-function clearestBearing(
+function obstructionBySector(
   map: mapboxgl.Map,
   centre: readonly [number, number],
-  subjectHeightM: number,
-): number | null {
+): readonly number[] | null {
   if (map.getLayer('city-buildings') === undefined) return null;
 
   const origin = map.project(centre as [number, number]);
@@ -115,8 +118,8 @@ function clearestBearing(
   }
   if (features.length === 0) return null;
 
-  const blocking = new Array<number>(SECTORS).fill(0);
-  let sawNeighbour = false;
+  const scores = new Array<number>(SECTORS).fill(0);
+  const sectorDeg = 360 / SECTORS;
 
   for (const feature of features) {
     const neighbour = centroidOfGeometry(feature.geometry);
@@ -127,31 +130,14 @@ function clearestBearing(
 
     const rawHeight = feature.properties?.height;
     const height = typeof rawHeight === 'number' ? rawHeight : 0;
-    // Only what stands taller than the subject can hide it.
-    if (height <= subjectHeightM) continue;
+    if (height <= 0) continue;
 
-    sawNeighbour = true;
-    const sector = Math.floor(bearingFrom(centre, neighbour) / (360 / SECTORS)) % SECTORS;
-    const score = (height - subjectHeightM) / Math.max(distance, 1);
-    if (score > blocking[sector]) blocking[sector] = score;
+    const sector = Math.floor(bearingFrom(centre, neighbour) / sectorDeg) % SECTORS;
+    const score = height / Math.max(distance, 1);
+    if (score > scores[sector]) scores[sector] = score;
   }
 
-  if (!sawNeighbour) return null;
-
-  let clearest = 0;
-  for (let sector = 1; sector < SECTORS; sector += 1) {
-    if (blocking[sector] < blocking[clearest]) clearest = sector;
-  }
-
-  // The camera sits opposite whatever is 'up' on screen, so putting it in the
-  // clear sector means pointing the bearing back across the building.
-  const cameraDirection = clearest * (360 / SECTORS) + 360 / SECTORS / 2;
-  return (cameraDirection + 180) % 360;
-}
-
-/** Smallest angle between two bearings, degrees. */
-function angleBetween(a: number, b: number): number {
-  return Math.abs((((a - b) % 360) + 540) % 360 - 180);
+  return scores;
 }
 
 /**
@@ -178,39 +164,44 @@ function applyMode(map: mapboxgl.Map | null, mode: MapMode): void {
     geometry: mode.target.geometry as GeoJSON.Geometry,
   });
   const heightM = (mode.target.heightFt ?? 60) * FT_TO_M;
+  const latitude = mode.target.centre[1];
+  const extentM = footprintExtentMetres(mode.target.geometry, latitude);
+
+  // Zoom is computed from this building's own size. A fixed value framed a
+  // walk-up correctly and cut a 300ft tower off at the second floor.
+  const canvas = map.getCanvas();
+  const viewportHeight = canvas.clientHeight || 700;
+  const zoom = zoomForBuilding({ extentM, heightM }, viewportHeight, latitude);
+  const offsetY = focusOffsetY(viewportHeight);
 
   map.flyTo({
     center: [mode.target.centre[0], mode.target.centre[1]],
-    zoom: FOCUS.zoom,
+    zoom,
     pitch: FOCUS.pitch,
     bearing: FOCUS.bearing,
     duration: 3200,
     essential: true,
     // The record occupies the lower two thirds of the screen, so lift the
-    // building into the clear space above it rather than centring it behind
-    // the panel.
-    offset: [0, -200],
+    // building's ground point into the clear strip above it and let the
+    // height rise into the space over it.
+    offset: [0, offsetY],
   });
 
-  // Once the flight has landed and the surrounding tiles are in, swing to
-  // whichever side of the building is not behind a taller neighbour. This runs
-  // after arrival because the neighbours have to be rendered before they can be
-  // measured, and it runs once: easeTo has no listener of its own, so there is
-  // no loop.
+  // Once the flight has landed and the surrounding tiles are in, swing to a
+  // clearer side — but only if there is one. This runs after arrival because
+  // the neighbours have to be rendered before they can be measured, and it
+  // runs once: easeTo has no listener of its own, so there is no loop.
   map.once('idle', () => {
     const still = getMapMode();
     if (still.kind !== 'focus' || still.target.bbl !== mode.target.bbl) return;
 
-    const better = clearestBearing(map, mode.target.centre, heightM);
-    if (better === null) return;
-    if (angleBetween(better, map.getBearing()) < MIN_WORTHWHILE_SWING_DEG) return;
+    const scores = obstructionBySector(map, mode.target.centre);
+    if (scores === null) return;
 
-    map.easeTo({
-      bearing: better,
-      duration: 1600,
-      essential: true,
-      offset: [0, -200],
-    });
+    const better = chooseCameraBearing(scores, FOCUS.bearing);
+    if (better === null || angleBetween(better, map.getBearing()) < 15) return;
+
+    map.easeTo({ bearing: better, duration: 1600, essential: true, offset: [0, offsetY] });
   });
 }
 
