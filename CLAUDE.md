@@ -77,6 +77,20 @@ opaque reasoning blob that must never reach a user.
 - The page renders the summary inside `<Suspense>`, so a slow call never blocks the report, and
   `revalidate = 3600` means repeat views of a building cost no quota.
 
+## ElevenLabs — verified 2026-09-27
+
+Env var is read as `ELEVENLABS_API_KEY` **or** `ELEVEN_API_KEY` — the dashboard suggests the
+latter, and reading only one produces a 401 that looks exactly like a missing scope. A 401 here
+means missing scope as often as a bad key.
+
+- Model `eleven_flash_v2_5` (multilingual, lowest credit cost), voice River `SAz9YHcvj6GT2YYXdXww`
+  (neutral/informative — a warmer voice would editorialise an already alarming record).
+- **`export const revalidate` does NOT cache a route handler here.** Repeat requests regenerated the
+  audio in ~6s with different bytes each time, spending credits per play. `/api/speech/[bbl]` caches
+  explicitly in a module-level Map with an in-flight guard: verified 10.8s cold, then ~5ms, and a
+  concurrent burst collapses to one generation.
+- Reading `request.url` marks a route dynamic. The speech route takes no query string for that reason.
+
 ## Product rules
 
 - **Building grade only** — the landlord grade is shelved. Print the grade's inputs, thresholds and

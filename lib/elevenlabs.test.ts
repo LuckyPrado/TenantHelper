@@ -24,7 +24,7 @@ describe('synthesiseSpeech', () => {
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.data.byteLength).toBe(2048);
     const [url, init] = fetchImpl.mock.calls[0] as [string, RequestInit];
-    expect(url).toMatch(/\/v1\/text-to-speech\/21m00Tcm4TlvDq8ikWAM$/);
+    expect(url).toMatch(/\/v1\/text-to-speech\/SAz9YHcvj6GT2YYXdXww$/);
     expect(JSON.parse(init.body as string).model_id).toBe('eleven_flash_v2_5');
   });
 

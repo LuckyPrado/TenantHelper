@@ -11,7 +11,7 @@ type State = 'idle' | 'loading' | 'playing' | 'error';
  * page view that nobody listens to must not spend any. The server route caches
  * for 24h, so a second listen is free.
  */
-export function ListenButton({ bbl, bin }: { readonly bbl: string; readonly bin: string | null }) {
+export function ListenButton({ bbl }: { readonly bbl: string }) {
   const [state, setState] = useState<State>('idle');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -31,7 +31,8 @@ export function ListenButton({ bbl, bin }: { readonly bbl: string; readonly bin:
     }
 
     setState('loading');
-    const url = `/api/speech/${bbl}${bin !== null ? `?bin=${encodeURIComponent(bin)}` : ''}`;
+    // No query string: it would make the route dynamic and defeat its cache.
+    const url = `/api/speech/${bbl}`;
 
     try {
       const response = await fetch(url);

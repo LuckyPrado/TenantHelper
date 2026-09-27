@@ -44,7 +44,7 @@ export async function BuildingSummary({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xs font-medium uppercase tracking-wide opacity-60">In plain English</h2>
         <div className="flex items-center gap-3">
-          {isElevenLabsConfigured() && <ListenButton bbl={report.bbl} bin={report.bin} />}
+          {isElevenLabsConfigured() && <ListenButton bbl={report.bbl} />}
           <span className="text-xs opacity-40">Gemini</span>
         </div>
       </div>

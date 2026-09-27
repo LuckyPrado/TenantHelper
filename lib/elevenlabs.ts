@@ -26,18 +26,29 @@ const API_BASE = 'https://api.elevenlabs.io/v1/text-to-speech';
 const MODEL_ID = 'eleven_flash_v2_5';
 
 /**
- * Rachel, a stock ElevenLabs voice present on every account.
- * Overridable so the voice can be changed without a deploy.
+ * River — "relaxed, neutral, informative". Chosen from the account's voices to
+ * match the product's stance: state the facts and let the reader conclude. A
+ * warmer or more dramatic voice would editorialise a record that is often
+ * alarming on its own. Overridable via ELEVENLABS_VOICE_ID.
  */
-const DEFAULT_VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
+const DEFAULT_VOICE_ID = 'SAz9YHcvj6GT2YYXdXww';
 
 const TIMEOUT_MS = 30_000;
 
 /** Guards against a malformed summary burning a large number of credits. */
 const MAX_CHARS = 1200;
 
+/**
+ * Accepts either name. ELEVENLABS_API_KEY is canonical, but ELEVEN_API_KEY is
+ * what the ElevenLabs dashboard suggests and is easy to end up with; reading
+ * only one of them produces a 401 that looks exactly like a missing scope.
+ */
+function apiKey(): string {
+  return (process.env.ELEVENLABS_API_KEY ?? process.env.ELEVEN_API_KEY ?? '').trim();
+}
+
 export function isElevenLabsConfigured(): boolean {
-  return (process.env.ELEVENLABS_API_KEY ?? '').trim() !== '';
+  return apiKey() !== '';
 }
 
 function voiceId(): string {
@@ -55,8 +66,8 @@ export async function synthesiseSpeech(
   text: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<Result<ArrayBuffer>> {
-  const apiKey = (process.env.ELEVENLABS_API_KEY ?? '').trim();
-  if (apiKey === '') return fail('ELEVENLABS_API_KEY is not set.');
+  const key = apiKey();
+  if (key === '') return fail('ELEVENLABS_API_KEY (or ELEVEN_API_KEY) is not set.');
 
   const trimmed = text.trim();
   if (trimmed === '') return fail('Nothing to narrate.');
@@ -70,7 +81,7 @@ export async function synthesiseSpeech(
     response = await fetchImpl(`${API_BASE}/${voiceId()}`, {
       method: 'POST',
       headers: {
-        'xi-api-key': apiKey,
+        'xi-api-key': key,
         'Content-Type': 'application/json',
         Accept: 'audio/mpeg',
       },
