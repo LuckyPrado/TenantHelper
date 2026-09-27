@@ -1,26 +1,109 @@
 @import "tailwindcss";
 
+/*
+  Design direction: a municipal record, held over the city it describes.
+
+  The subject matter is NYC housing enforcement — Notices of Violation taped in
+  lobbies, housing court dockets, tax lot numbering. So the report reads as a
+  document: cool paper, ink type, ruled rather than boxed. The 3D city sits dark
+  behind it.
+
+  Deliberately NOT a dark glass HUD with a cyan accent. That is the default
+  treatment for anything with a map in it, and it would make an inspection
+  record look like a game overlay. Light-over-dark also keeps dense numeric
+  content legible in a way translucent panels over moving terrain do not.
+*/
+
+@theme {
+  /* Paper — cool and slightly grey, the stock a city form is printed on.
+     Not warm cream: that is its own cliché, and it reads nostalgic rather
+     than official. */
+  --color-paper: #f2f3f1;
+  --color-paper-sunk: #e6e8e4;
+  --color-paper-edge: #d2d5cf;
+
+  /* Ink */
+  --color-ink: #14161a;
+  --color-ink-soft: #454a52;
+  --color-ink-faint: #757c86;
+
+  /* The city behind the paper */
+  --color-city: #0d1117;
+  --color-city-deep: #070a0e;
+
+  /* Severity carries meaning, so it is a system rather than decoration.
+     Keyed to HPD's own hazard ladder: A non-hazardous, B hazardous,
+     C immediately hazardous. */
+  --color-class-a: #6b7280;
+  --color-class-b: #b45309;
+  --color-class-c: #9f1239;
+  --color-clear: #15803d;
+
+  /* One signal colour, used only for the building currently selected —
+     on the map, and as the rule marking the matching row in the document.
+     Municipal safety orange, not the habitual cyan. */
+  --color-signal: #ff5c1a;
+
+  --font-display: var(--font-archivo), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: var(--font-archivo), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light dark;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-city-deep);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Numbers in this product are evidence. They must align in a column and never
+   reflow as they tick, so tabular figures are the default everywhere. */
+.tabular,
+table,
+[data-numeric] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* A sheet of paper. Square by default: a municipal form has no rounded
+   corners, and giving every surface the same radius is the SaaS-card tell. */
+.sheet {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  border: 1px solid var(--color-paper-edge);
+}
+
+/* Rules do the structural work that boxes would otherwise do, which keeps the
+   document dense without turning it into a grid of identical cards. */
+.rule {
+  border-top: 1px solid var(--color-paper-edge);
+}
+
+.rule-heavy {
+  border-top: 2px solid var(--color-ink);
+}
+
+/* A stamped classification, as on the violation notice itself. */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid currentColor;
+  padding: 0.05rem 0.4rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

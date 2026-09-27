@@ -1,44 +1,40 @@
-import type { EvaluatedRule, Grade, Letter } from '@/lib/grade';
+import type { EvaluatedRule, Grade } from '@/lib/grade';
+import { Section } from './doc/primitives';
 
-const LETTER_STYLES: Readonly<Record<Letter, string>> = {
-  A: 'border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  B: 'border-emerald-500/40 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300',
-  C: 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-  D: 'border-orange-500/50 bg-orange-500/10 text-orange-700 dark:text-orange-300',
-  F: 'border-red-500/60 bg-red-500/10 text-red-700 dark:text-red-300',
-};
-
-const OUTCOME_MARK: Readonly<Record<EvaluatedRule['outcome'], string>> = {
-  triggered: '✕',
+const MARK: Readonly<Record<EvaluatedRule['outcome'], string>> = {
+  triggered: '×',
   clear: '✓',
   'not-assessed': '–',
 };
 
 function RuleRow({ rule }: { readonly rule: EvaluatedRule }) {
-  const dimmed = rule.outcome !== 'triggered';
+  const triggered = rule.outcome === 'triggered';
 
   return (
-    <li className={`flex gap-3 py-2 ${dimmed ? 'opacity-55' : ''}`}>
+    <li
+      className={`flex gap-3 border-b border-paper-edge/60 py-2 last:border-b-0 ${
+        triggered ? '' : 'opacity-55'
+      }`}
+    >
       <span
         aria-hidden
-        className={`mt-0.5 w-4 shrink-0 text-center text-sm ${
-          rule.outcome === 'triggered' ? 'text-red-600 dark:text-red-400' : ''
-        }`}
+        className={`w-3 shrink-0 text-center text-[0.9rem] ${triggered ? 'text-class-c' : 'text-ink-faint'}`}
       >
-        {OUTCOME_MARK[rule.outcome]}
+        {MARK[rule.outcome]}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-          <span className="text-sm font-medium">{rule.label}</span>
-          <span className="text-xs tabular-nums opacity-60">
-            {rule.outcome === 'triggered' ? `+${rule.points}` : `0 of ${rule.points}`}
+          <span className="text-[0.88rem] font-500 text-ink">{rule.label}</span>
+          <span className="tabular text-[0.75rem] text-ink-faint" data-numeric>
+            {triggered ? `+${rule.points}` : `0 of ${rule.points}`}
           </span>
         </div>
-        {/* The threshold is printed verbatim — the grade must be auditable on sight. */}
-        <div className="text-xs opacity-70">
+        {/* The threshold is printed verbatim: the grade has to be auditable on
+            sight, or it is the black box the product rules forbid. */}
+        <div className="text-[0.75rem] leading-snug text-ink-faint">
           {rule.threshold}
-          {rule.observed !== null && <> · found {rule.observed}</>}
-          {rule.outcome === 'not-assessed' && <> · not assessed, source unavailable</>}
+          {rule.observed !== null && <> — found {rule.observed}</>}
+          {rule.outcome === 'not-assessed' && <> — not checked, source unavailable</>}
         </div>
       </div>
       {rule.datasetId !== null && (
@@ -46,7 +42,7 @@ function RuleRow({ rule }: { readonly rule: EvaluatedRule }) {
           href={`https://data.cityofnewyork.us/d/${rule.datasetId}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 self-start text-xs underline opacity-40 hover:opacity-100"
+          className="shrink-0 self-start text-[0.7rem] text-ink-faint underline decoration-dotted underline-offset-2 hover:text-ink"
           aria-label={`Source dataset for ${rule.label}`}
         >
           source
@@ -57,50 +53,41 @@ function RuleRow({ rule }: { readonly rule: EvaluatedRule }) {
 }
 
 /**
- * The building grade, shown with every rule that produced it.
+ * How the grade was reached, rule by rule.
  *
- * Product rule: no black box. Thresholds, points and the observed value are all
- * on screen, each linking to its dataset, so the grade can be audited in ten
- * seconds rather than taken on trust.
+ * Thresholds, points and the observed value are all on screen. A grade a judge
+ * cannot audit in ten seconds should not ship.
  */
 export function GradeCard({ grade }: { readonly grade: Grade | null }) {
   if (grade === null) {
     return (
-      <section className="rounded-xl border border-black/10 p-6 dark:border-white/15">
-        <h2 className="text-xs font-medium uppercase tracking-wide opacity-60">Building grade</h2>
-        <div className="mt-1 text-2xl font-semibold opacity-50">Not graded</div>
-        <p className="mt-1 text-sm opacity-70">
+      <Section title="How this grade was reached">
+        <p className="text-[0.88rem] text-ink-faint">
           The violation record is unavailable, so grading this building would be guesswork.
         </p>
-      </section>
+      </Section>
     );
   }
 
   return (
-    <section className={`rounded-xl border p-6 ${LETTER_STYLES[grade.letter]}`}>
-      <div className="flex items-start gap-5">
-        <div className="text-6xl font-bold leading-none tabular-nums">{grade.letter}</div>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xs font-medium uppercase tracking-wide opacity-70">Building grade</h2>
-          <p className="mt-1 text-sm opacity-80">
-            {grade.points} of {grade.maxPoints} risk points from the rules below.
-            {grade.notAssessed > 0 && (
-              <> {grade.notAssessed} could not be checked, so this is a partial grade.</>
-            )}
-          </p>
-        </div>
-      </div>
-
-      <ul className="mt-4 divide-y divide-current/10 border-t border-current/10 pt-1 text-current">
+    <Section
+      title="How this grade was reached"
+      aside={
+        <span className="tabular" data-numeric>
+          {grade.points} of {grade.maxPoints} risk points
+          {grade.notAssessed > 0 && ` · ${grade.notAssessed} unchecked`}
+        </span>
+      }
+    >
+      <ul>
         {grade.rules.map((rule) => (
           <RuleRow key={rule.id} rule={rule} />
         ))}
       </ul>
-
-      <p className="mt-3 text-xs opacity-70">
-        Every rule and threshold is fixed and shown above — there is no hidden weighting. A grade
+      <p className="mt-3 text-[0.75rem] leading-snug text-ink-faint">
+        Every rule and threshold is fixed and shown above; there is no hidden weighting. The grade
         reflects public filings, not an inspection.
       </p>
-    </section>
+    </Section>
   );
 }

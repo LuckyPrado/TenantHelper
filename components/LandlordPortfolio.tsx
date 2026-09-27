@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Landlord } from '@/lib/nyc/landlord';
 import type { SourceValue } from '@/lib/nyc/report';
+import { Section } from './doc/primitives';
 
 const ROLE_LABELS: Readonly<Record<string, string>> = {
   agent: 'Managing agent',
@@ -16,11 +17,12 @@ function roleLabel(role: string): string {
 }
 
 /**
- * The landlord and their other buildings.
+ * Who runs the building and what else they run.
  *
  * Facts only — counts and addresses, no grade. The landlord rating was shelved
- * because no rating data exists; inventing one would be the same black box the
- * product rules forbid.
+ * because no rating data exists; deriving one would be the black box the
+ * product rules forbid. 1,697 open violations across a portfolio speaks for
+ * itself without an adjective.
  */
 export function LandlordPortfolio({
   source,
@@ -31,77 +33,74 @@ export function LandlordPortfolio({
 }) {
   if (source.value === null) {
     return (
-      <section className="rounded-xl border border-black/10 p-6 dark:border-white/15">
-        <h2 className="text-xs font-medium uppercase tracking-wide opacity-60">Landlord</h2>
-        <div className="mt-1 text-2xl font-semibold opacity-50">Unavailable</div>
-        <p className="mt-1 text-sm opacity-60">{source.error}</p>
-      </section>
+      <Section title="Ownership">
+        <p className="text-[0.88rem] text-ink-faint">{source.error}</p>
+      </Section>
     );
   }
 
   const { contacts, portfolioKey, portfolio, portfolioOpenViolations, truncated } = source.value;
-  const others = portfolio.filter((b) => b.bbl !== currentBbl);
+  const others = portfolio.filter((building) => building.bbl !== currentBbl);
 
   return (
-    <section className="rounded-xl border border-black/10 p-6 dark:border-white/15">
-      <h2 className="text-xs font-medium uppercase tracking-wide opacity-60">Landlord</h2>
-
-      <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+    <Section title="Ownership">
+      <dl className="grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2">
         {contacts.slice(0, 4).map((contact) => (
-          <div key={`${contact.role}-${contact.name}`}>
-            <dt className="text-xs uppercase tracking-wide opacity-60">{roleLabel(contact.role)}</dt>
-            <dd className="text-sm font-medium">{contact.name}</dd>
+          <div key={`${contact.role}-${contact.name}`} className="flex items-baseline gap-2">
+            <dt className="shrink-0 text-[0.78rem] text-ink-faint">{roleLabel(contact.role)}</dt>
+            <dd className="min-w-0 truncate text-[0.88rem] font-500 text-ink">{contact.name}</dd>
           </div>
         ))}
       </dl>
 
       {portfolioKey !== null && others.length > 0 && (
         <>
-          <div className="mt-6 rounded-md border border-amber-500/50 bg-amber-500/5 p-4">
-            <div className="text-sm">
-              <strong>{portfolioKey.name}</strong> also runs{' '}
-              <strong>
-                {others.length}
-                {truncated && '+'} other {others.length === 1 ? 'building' : 'buildings'}
-              </strong>
-              {portfolioOpenViolations !== null && (
-                <>
-                  {' '}
-                  with{' '}
-                  <strong>{portfolioOpenViolations.toLocaleString()} open violations</strong> between
-                  them
-                </>
-              )}
-              .
-            </div>
-            <p className="mt-1 text-xs opacity-60">
-              Found by matching the HPD {roleLabel(portfolioKey.role).toLowerCase()}, not the owning
-              LLC — NYC landlords register one company per building, so the owner name finds only
-              this one.
-            </p>
-          </div>
+          <p className="rule mt-4 pt-3 text-[0.95rem] leading-snug text-ink">
+            <span className="font-600">{portfolioKey.name}</span> also runs{' '}
+            <span className="tabular font-600" data-numeric>
+              {others.length}
+              {truncated && '+'}
+            </span>{' '}
+            other {others.length === 1 ? 'building' : 'buildings'}
+            {portfolioOpenViolations !== null && (
+              <>
+                , with{' '}
+                <span className="tabular font-700 text-class-c" data-numeric>
+                  {portfolioOpenViolations.toLocaleString()}
+                </span>{' '}
+                open violations between them
+              </>
+            )}
+            .
+          </p>
+          <p className="mt-1 text-[0.75rem] leading-snug text-ink-faint">
+            Matched on the {roleLabel(portfolioKey.role).toLowerCase()} rather than the owning
+            company. NYC landlords register one company per building, so the owner name finds only
+            this one.
+          </p>
 
-          <ul className="mt-4 divide-y divide-black/10 dark:divide-white/10">
-            {others.slice(0, 10).map((building) => (
-              <li key={building.bbl} className="flex items-center justify-between gap-4 py-2">
+          <ul className="mt-3">
+            {others.slice(0, 8).map((building) => (
+              <li
+                key={building.bbl}
+                className="flex items-baseline justify-between gap-4 border-b border-paper-edge/60 py-1.5 last:border-b-0"
+              >
                 <Link
                   href={{ pathname: `/building/${building.bbl}` }}
-                  className="truncate text-sm underline decoration-dotted underline-offset-2 hover:decoration-solid"
+                  className="min-w-0 truncate text-[0.88rem] text-ink underline decoration-dotted underline-offset-2 hover:decoration-solid"
                 >
-                  {building.address || `BBL ${building.bbl}`}
+                  {building.address || `Tax lot ${building.bbl}`}
                 </Link>
-                <span className="shrink-0 text-sm tabular-nums opacity-70">
-                  {building.openViolations === null
-                    ? '—'
-                    : `${building.openViolations.toLocaleString()} open`}
+                <span className="tabular shrink-0 text-[0.88rem] font-600 text-ink-soft" data-numeric>
+                  {building.openViolations === null ? '—' : building.openViolations.toLocaleString()}
                 </span>
               </li>
             ))}
           </ul>
 
-          {others.length > 10 && (
-            <p className="mt-2 text-xs opacity-60">
-              Showing the 10 with the most open violations, of {others.length}
+          {others.length > 8 && (
+            <p className="mt-2 text-[0.75rem] text-ink-faint">
+              The eight with the most open violations, of {others.length}
               {truncated && '+'}.
             </p>
           )}
@@ -109,31 +108,32 @@ export function LandlordPortfolio({
       )}
 
       {portfolioKey !== null && others.length === 0 && (
-        <p className="mt-4 text-sm opacity-70">
+        <p className="rule mt-4 pt-3 text-[0.88rem] text-ink-soft">
           No other buildings found under {portfolioKey.name}.
         </p>
       )}
 
-      <p className="mt-4 text-xs opacity-60">
-        From HPD property registrations.{' '}
+      <p className="mt-3 text-[0.75rem] text-ink-faint">
+        From HPD property registrations —{' '}
         <a
           href="https://data.cityofnewyork.us/d/tesw-yqqr"
           target="_blank"
           rel="noopener noreferrer"
-          className="underline"
+          className="underline decoration-dotted underline-offset-2 hover:text-ink"
         >
-          Registrations
+          registrations
         </a>{' '}
-        ·{' '}
+        and{' '}
         <a
           href="https://data.cityofnewyork.us/d/feu5-w2e2"
           target="_blank"
           rel="noopener noreferrer"
-          className="underline"
+          className="underline decoration-dotted underline-offset-2 hover:text-ink"
         >
-          Contacts
+          contacts
         </a>
+        .
       </p>
-    </section>
+    </Section>
   );
 }

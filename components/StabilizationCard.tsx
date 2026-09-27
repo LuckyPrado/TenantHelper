@@ -2,61 +2,19 @@ import { nextOrderAfter, orderForLeaseStart } from '@/lib/nyc/rgb';
 import type { SourceValue } from '@/lib/nyc/report';
 import { SOURCE_REPO_URL, type StabilizationStatus } from '@/lib/nyc/stabilized';
 import type { AreaRent } from '@/lib/nyc/zori';
+import { Section, Stamp } from './doc/primitives';
 
 function pct(value: number): string {
   return `${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)}%`;
 }
 
-function Caps({ today }: { readonly today: Date }) {
-  const current = orderForLeaseStart(today);
-  const next = nextOrderAfter(today);
-
-  if (current === null && next === null) {
-    return (
-      <p className="mt-3 text-sm opacity-70">
-        No published Rent Guidelines Board order covers today&apos;s date.
-      </p>
-    );
-  }
-
-  return (
-    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {[current, next].map((order, index) =>
-        order === null ? null : (
-          <div
-            key={order.order}
-            className={`rounded-md border p-3 ${
-              index === 1
-                ? 'border-emerald-500/50 bg-emerald-500/5'
-                : 'border-black/10 dark:border-white/15'
-            }`}
-          >
-            <div className="text-xs uppercase tracking-wide opacity-60">
-              {index === 1 ? 'Leases from ' : 'Leases until '}
-              {new Date(index === 1 ? order.startsOn : order.endsOn).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-                timeZone: 'UTC',
-              })}
-            </div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums">{pct(order.oneYearPct)}</div>
-            <div className="text-xs opacity-70">
-              1-year renewal · {pct(order.twoYearPct)} for 2-year
-            </div>
-            <a
-              href={order.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-block text-xs underline opacity-50 hover:opacity-100"
-            >
-              RGB Order #{order.order}
-            </a>
-          </div>
-        ),
-      )}
-    </div>
-  );
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 }
 
 interface StabilizationCardProps {
@@ -66,82 +24,113 @@ interface StabilizationCardProps {
 }
 
 /**
- * Rent stabilization status and, when stabilized, the legal increase cap.
+ * Stabilization status and, when it applies, the legal ceiling on a renewal.
  *
- * This is the one place the app can state a future rent figure with confidence:
- * a RGB order is a published rule, not an extrapolation. The contrast against
- * the ZORI area trend is the point — it is what the status is worth to a tenant.
+ * The only place this product states a future rent with confidence: a Rent
+ * Guidelines Board order is a published rule, not an extrapolation. The gap
+ * between that ceiling and the area trend is what the status is actually worth.
  */
 export function StabilizationCard({ source, areaRent, today = new Date() }: StabilizationCardProps) {
   if (source.value === null) {
     return (
-      <section className="rounded-xl border border-black/10 p-6 dark:border-white/15">
-        <h2 className="text-xs font-medium uppercase tracking-wide opacity-60">
-          Rent stabilization
-        </h2>
-        <div className="mt-1 text-2xl font-semibold opacity-50">Unavailable</div>
-        <p className="mt-1 text-sm opacity-60">{source.error}</p>
-      </section>
+      <Section title="Rent regulation">
+        <p className="text-[0.88rem] text-ink-faint">{source.error}</p>
+      </Section>
     );
   }
 
   const { isStabilized, buildingClass } = source.value;
   const areaTrendPct = areaRent.value?.yearOverYearPct ?? null;
-  const cap = orderForLeaseStart(today) ?? nextOrderAfter(today);
+  const current = orderForLeaseStart(today);
+  const next = nextOrderAfter(today);
+  const cap = current ?? next;
+
+  if (!isStabilized) {
+    return (
+      <Section title="Rent regulation">
+        <p className="text-[0.9rem] text-ink-soft">
+          This building is not on the rent stabilized list, so a renewal increase is most likely set
+          by the market rather than capped. Absence is not proof — buildings can be missing or newly
+          registered.
+        </p>
+        <p className="mt-3 text-[0.75rem] leading-snug text-ink-faint">
+          Community-sourced and unofficial, from{' '}
+          <a
+            href={SOURCE_REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-dotted underline-offset-2 hover:text-ink"
+          >
+            firstmovernyc
+          </a>
+          , built on Rent Guidelines Board filings. Not legal advice.
+        </p>
+      </Section>
+    );
+  }
 
   return (
-    <section
-      className={`rounded-xl border p-6 ${
-        isStabilized
-          ? 'border-emerald-500/50 bg-emerald-500/5'
-          : 'border-black/10 dark:border-white/15'
-      }`}
-    >
-      <h2 className="text-xs font-medium uppercase tracking-wide opacity-60">Rent stabilization</h2>
-      <div className="mt-1 text-2xl font-semibold">
-        {isStabilized ? 'Likely rent stabilized' : 'Not on the stabilized list'}
+    <Section title="Rent regulation" aside={<Stamp tone="clear">Stabilized</Stamp>}>
+      <p className="text-[0.9rem] text-ink-soft">
+        Renewal increases here are capped by the Rent Guidelines Board.
+        {buildingClass !== null && ` Listed as ${buildingClass.toLowerCase()}.`}
+      </p>
+
+      <div className="mt-4 grid grid-cols-1 gap-px bg-paper-edge sm:grid-cols-2">
+        {[current, next].map((order, index) =>
+          order === null ? null : (
+            <div key={order.order} className="bg-paper px-4 py-3">
+              <div className="text-[0.75rem] text-ink-faint">
+                {index === 1
+                  ? `Leases from ${shortDate(order.startsOn)}`
+                  : `Leases until ${shortDate(order.endsOn)}`}
+              </div>
+              <div className="tabular mt-1 text-[1.9rem] leading-none font-700 text-ink" data-numeric>
+                {pct(order.oneYearPct)}
+              </div>
+              <div className="mt-1 text-[0.75rem] text-ink-faint">
+                one-year renewal · {pct(order.twoYearPct)} for two
+              </div>
+              <a
+                href={order.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-block text-[0.7rem] text-ink-faint underline decoration-dotted underline-offset-2 hover:text-ink"
+              >
+                Order #{order.order}
+              </a>
+            </div>
+          ),
+        )}
       </div>
 
-      {isStabilized ? (
-        <>
-          <p className="mt-2 text-sm opacity-80">
-            Your renewal increase is capped by the Rent Guidelines Board.
-            {buildingClass !== null && (
-              <span className="opacity-60"> Listed as {buildingClass.toLowerCase()}.</span>
-            )}
-          </p>
-
-          <Caps today={today} />
-
-          {areaTrendPct !== null && cap !== null && areaTrendPct > cap.oneYearPct && (
-            <p className="mt-4 rounded-md border border-black/10 p-3 text-sm dark:border-white/15">
-              Area rents rose <strong>{areaTrendPct.toFixed(1)}%</strong> over the last year, but a
-              stabilized renewal here is capped at <strong>{pct(cap.oneYearPct)}</strong>. That gap
-              is what the status is worth to you.
-            </p>
-          )}
-        </>
-      ) : (
-        <p className="mt-2 text-sm opacity-80">
-          This building does not appear on the community-maintained stabilized list, so a renewal
-          increase is most likely set by the market rather than capped. Absence from the list is not
-          proof — buildings can be missing or newly registered.
+      {areaTrendPct !== null && cap !== null && areaTrendPct > cap.oneYearPct && (
+        <p className="rule mt-4 pt-3 text-[0.9rem] text-ink-soft">
+          Rents across the ZIP rose{' '}
+          <span className="tabular font-600 text-class-b" data-numeric>
+            {areaTrendPct.toFixed(1)}%
+          </span>{' '}
+          last year. A stabilized renewal here is capped at{' '}
+          <span className="tabular font-600 text-clear" data-numeric>
+            {pct(cap.oneYearPct)}
+          </span>
+          . That gap is what the status is worth to you.
         </p>
       )}
 
-      <p className="mt-4 text-xs leading-snug opacity-60">
-        Community-sourced and unofficial, built from Rent Guidelines Board filings by{' '}
+      <p className="mt-3 text-[0.75rem] leading-snug text-ink-faint">
+        Community-sourced and unofficial, from{' '}
         <a
           href={SOURCE_REPO_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline"
+          className="underline decoration-dotted underline-offset-2 hover:text-ink"
         >
-          firstmovernyc/nyc-rent-stabilized-listings
+          firstmovernyc
         </a>
-        . It may contain errors and is not legal advice. Confirm your own status with a DHCR rent
-        history request.
+        , built on Rent Guidelines Board filings. It may contain errors and is not legal advice —
+        confirm with a DHCR rent history request.
       </p>
-    </section>
+    </Section>
   );
 }

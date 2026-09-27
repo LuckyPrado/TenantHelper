@@ -65,7 +65,7 @@ export function ListenButton({ bbl }: { readonly bbl: string }) {
       onClick={play}
       disabled={state === 'loading' || state === 'error'}
       aria-label={state === 'playing' ? 'Stop narration' : 'Listen to this summary'}
-      className="inline-flex items-center gap-1.5 rounded-full border border-current/25 px-3 py-1 text-xs font-medium transition-opacity hover:opacity-100 disabled:opacity-40"
+      className="inline-flex items-center gap-1.5 border border-ink px-2 py-0.5 text-[0.72rem] font-600 text-ink transition-colors hover:bg-ink hover:text-paper disabled:border-paper-edge disabled:text-ink-faint disabled:hover:bg-transparent"
     >
       <span aria-hidden>{state === 'playing' ? '◼' : '▶'}</span>
       {label}
