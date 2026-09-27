@@ -1,4 +1,6 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
+import { BuildingSummary, SummarySkeleton } from '@/components/BuildingSummary';
 import { GradeCard } from '@/components/GradeCard';
 import { LandlordPortfolio } from '@/components/LandlordPortfolio';
 import { RentTrend } from '@/components/RentTrend';
@@ -105,6 +107,12 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
             </p>
           </section>
         )}
+      </div>
+
+      <div className="mt-6">
+        <Suspense fallback={<SummarySkeleton />}>
+          <BuildingSummary report={report} grade={grade} />
+        </Suspense>
       </div>
 
       <div className="mt-6">
