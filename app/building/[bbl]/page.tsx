@@ -55,7 +55,7 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
 
   return (
     <div className="min-h-screen">
-      <main className="relative mx-auto w-full max-w-3xl pb-16">
+      <main className="relative z-10 mx-auto w-full max-w-3xl pb-16">
         {footprint !== null && (
           <FocusOnMount
             target={{

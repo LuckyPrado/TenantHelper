@@ -81,7 +81,7 @@ export function Landing() {
   return (
     <div
       data-overlay
-      className={`pointer-events-none fixed inset-0 transition-opacity duration-500 ${
+      className={`pointer-events-none fixed inset-0 z-10 transition-opacity duration-500 ${
         dismissed ? 'opacity-0' : 'opacity-100'
       }`}
     >

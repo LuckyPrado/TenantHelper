@@ -37,7 +37,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       {/* The map is mounted once here, not per page, so it survives
           client-side navigation — that continuity between searching, reading a
           record and coming back is the point of the design. */}
-      <body className="min-h-full bg-city-deep text-ink">
+      <body className="min-h-full text-ink">
         <CityMap />
         {children}
       </body>

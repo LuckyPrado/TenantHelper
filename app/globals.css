@@ -53,9 +53,17 @@
   color-scheme: light dark;
 }
 
-html,
+/* The root paints the canvas; body MUST stay transparent.
+   The map is a fixed, full-bleed layer underneath the page content, and an
+   opaque background on body paints over it — a child cannot show through its
+   own parent's background. This cost an hour: the map element was in the DOM
+   and correct the whole time, just never visible. */
+html {
+  background: var(--color-city-deep);
+}
+
 body {
-  background: var(--color-paper);
+  background: transparent;
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;

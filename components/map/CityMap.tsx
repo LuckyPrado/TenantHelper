@@ -213,7 +213,7 @@ export function CityMap() {
   }, []);
 
   return (
-    <div className="fixed inset-0 -z-10 bg-city-deep" aria-hidden={status !== 'ready'}>
+    <div className="fixed inset-0 z-0 bg-city-deep" aria-hidden={status !== 'ready'}>
       <div ref={containerRef} className="absolute inset-0" />
       {status === 'no-token' && (
         <div className="absolute inset-x-0 bottom-6 flex justify-center px-6">
