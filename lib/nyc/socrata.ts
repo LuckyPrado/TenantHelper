@@ -12,7 +12,12 @@
 import { fail, ok, type Result } from './result';
 
 const SOCRATA_BASE = 'https://data.cityofnewyork.us/resource';
-const DEFAULT_TIMEOUT_MS = 10_000;
+/**
+ * Generous on purpose. A report fans out to six Socrata queries at once, and
+ * under that contention a 10s cap produced intermittent timeouts that render
+ * as "not enough data" — the correct behaviour, but for the wrong reason.
+ */
+const DEFAULT_TIMEOUT_MS = 20_000;
 
 /** Socrata returns aggregate counts as strings under this key. */
 const COUNT_KEY = 'count_1';

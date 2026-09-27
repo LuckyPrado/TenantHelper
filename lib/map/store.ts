@@ -23,8 +23,7 @@ export type MapMode =
   | { readonly kind: 'idle' }
   /** A building is the subject; camera flies in and lights it. */
   | { readonly kind: 'focus'; readonly target: FocusTarget }
-  /** User is driving the map; sample buildings are lit and hoverable. */
-  | { readonly kind: 'explore' };
+  ;
 
 type Listener = (mode: MapMode) => void;
 
@@ -49,23 +48,3 @@ export function subscribeToMap(listener: Listener): () => void {
   };
 }
 
-/** Whether the stabilized overlay is on. Kept separate: it is orthogonal to mode. */
-let stabilizedOn = false;
-const stabilizedListeners = new Set<(on: boolean) => void>();
-
-export function isStabilizedLayerOn(): boolean {
-  return stabilizedOn;
-}
-
-export function toggleStabilizedLayer(on?: boolean): void {
-  stabilizedOn = on ?? !stabilizedOn;
-  for (const listener of stabilizedListeners) listener(stabilizedOn);
-}
-
-export function subscribeToStabilized(listener: (on: boolean) => void): () => void {
-  stabilizedListeners.add(listener);
-  listener(stabilizedOn);
-  return () => {
-    stabilizedListeners.delete(listener);
-  };
-}

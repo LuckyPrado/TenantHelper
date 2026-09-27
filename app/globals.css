@@ -15,33 +15,32 @@
 */
 
 @theme {
-  /* Paper — cool and slightly grey, the stock a city form is printed on.
-     Not warm cream: that is its own cliché, and it reads nostalgic rather
-     than official. */
-  --color-paper: #f2f3f1;
-  --color-paper-sunk: #e6e8e4;
-  --color-paper-edge: #d2d5cf;
+  /* NOTE: the "paper"/"ink" names are historical. The record used to be a
+     light sheet; it is now dark glass over the live city, so the values are
+     inverted while the names stay put. */
 
-  /* Ink */
-  --color-ink: #14161a;
-  --color-ink-soft: #454a52;
-  --color-ink-faint: #757c86;
+  /* Surfaces: translucent so the skyline stays visible through the record. */
+  --color-paper: oklch(21% 0.012 250 / 0.78);
+  --color-paper-sunk: oklch(26% 0.014 250 / 0.7);
+  --color-paper-edge: oklch(100% 0 0 / 0.14);
 
-  /* The city behind the paper */
+  /* Type */
+  --color-ink: #eef2f6;
+  --color-ink-soft: #aab4c0;
+  --color-ink-faint: #7b8794;
+
+  /* The city behind the glass */
   --color-city: #0d1117;
   --color-city-deep: #070a0e;
 
-  /* Severity carries meaning, so it is a system rather than decoration.
-     Keyed to HPD's own hazard ladder: A non-hazardous, B hazardous,
-     C immediately hazardous. */
-  --color-class-a: #6b7280;
-  --color-class-b: #b45309;
-  --color-class-c: #9f1239;
-  --color-clear: #15803d;
+  /* Severity, retuned for a dark ground. Keyed to HPD's hazard ladder:
+     A non-hazardous, B hazardous, C immediately hazardous. */
+  --color-class-a: #8d97a3;
+  --color-class-b: #f0a132;
+  --color-class-c: #ff6b7d;
+  --color-clear: #4ade80;
 
-  /* One signal colour, used only for the building currently selected —
-     on the map, and as the rule marking the matching row in the document.
-     Municipal safety orange, not the habitual cyan. */
+  /* One signal colour, for the selected building only. */
   --color-signal: #ff5c1a;
 
   --font-display: var(--font-archivo), "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -78,14 +77,16 @@ table,
   font-feature-settings: "tnum" 1;
 }
 
-/* The record surface, lifted over the live city rather than pasted onto a
-   flat dark field. Square corners stay: a municipal form has none, and one
-   radius on every surface is the SaaS-card tell. The shadow does the work a
-   border would, so the sheet reads as physically above the map. */
+/* The record, as dark glass laid over the city rather than a sheet of paper
+   on top of it — the building you are reading about stays visible behind the
+   figures. Square corners stay: one radius on every surface is the SaaS-card
+   tell, and a municipal record has none. */
 .sheet {
   background: var(--color-paper);
   color: var(--color-ink);
-  box-shadow: 0 -2px 60px rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  border-top: 1px solid var(--color-paper-edge);
 }
 
 /* Rules do the structural work that boxes would otherwise do, which keeps the

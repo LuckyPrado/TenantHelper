@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Archivo, Geist_Mono } from 'next/font/google';
-import { MapShell } from '@/components/map/MapShell';
+import { CityMap } from '@/components/map/CityMap';
 import './globals.css';
 
 /*
@@ -38,7 +38,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
           client-side navigation — that continuity between searching, reading a
           record and coming back is the point of the design. */}
       <body className="min-h-full text-ink">
-        <MapShell />
+        <CityMap />
         {children}
       </body>
     </html>

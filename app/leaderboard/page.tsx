@@ -71,7 +71,7 @@ export default async function LeaderboardPage({ searchParams }: PageProps<'/lead
   const result = await fetchLeaderboard(zip);
 
   return (
-    <main className="relative z-10 mx-auto w-full max-w-4xl flex-1 bg-paper px-5 py-10 shadow-[0_0_80px_rgba(0,0,0,0.8)] sm:my-10 sm:py-14">
+    <main className="relative z-10 mx-auto w-full max-w-4xl flex-1 sheet px-5 py-10 sm:my-10 sm:py-14">
       <Link href="/" className="text-[0.85rem] text-ink-faint underline underline-offset-2 hover:text-ink">
         ← Search an address
       </Link>
