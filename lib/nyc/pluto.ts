@@ -28,6 +28,12 @@ export interface BuildingFacts {
   readonly yearBuilt: number | null;
   readonly numFloors: number | null;
   readonly ownerName: string | null;
+  /**
+   * GROSS residential floor area in square feet — hallways, stairwells and
+   * lobbies included. An apartment is smaller than this divided by the unit
+   * count, and anything showing it must say so.
+   */
+  readonly resAreaSqFt: number | null;
 }
 
 interface PlutoRow {
@@ -39,6 +45,7 @@ interface PlutoRow {
   readonly yearbuilt?: string;
   readonly numfloors?: string;
   readonly ownername?: string;
+  readonly resarea?: string;
 }
 
 /** PLUTO uses 0 for "unknown" in year fields; treat that as absent. */
@@ -69,7 +76,7 @@ export async function fetchBuildingFacts(
   const rows = await socrataQuery<PlutoRow>(
     PLUTO_DATASET,
     {
-      $select: 'bbl,address,zipcode,unitsres,unitstotal,yearbuilt,numfloors,ownername',
+      $select: 'bbl,address,zipcode,unitsres,unitstotal,yearbuilt,numfloors,ownername,resarea',
       bbl: normalized,
     },
     { keyDesc: `bbl=${normalized}`, fetchImpl },
@@ -102,5 +109,20 @@ export async function fetchBuildingFacts(
     yearBuilt: optionalNumber(row.yearbuilt),
     numFloors: optionalNumber(row.numfloors),
     ownerName: row.ownername?.trim() || null,
+    resAreaSqFt: optionalNumber(row.resarea),
   });
+}
+
+/**
+ * Average floor area per apartment, in square feet.
+ *
+ * Gross area over unit count, so it counts the hallway outside the door as
+ * well as the rooms behind it. Useful for sanity-checking a listing's price
+ * per square foot; not a measurement of any actual apartment. Null when PLUTO
+ * has no residential area for the lot.
+ */
+export function averageUnitSqFt(facts: BuildingFacts): number | null {
+  if (facts.resAreaSqFt === null || facts.unitsRes <= 0) return null;
+  const average = facts.resAreaSqFt / facts.unitsRes;
+  return Number.isFinite(average) && average > 0 ? average : null;
 }

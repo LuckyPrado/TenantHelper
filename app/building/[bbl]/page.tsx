@@ -143,7 +143,7 @@ export default async function BuildingPage({ params, searchParams }: PageProps<'
             />
           </Section>
 
-          <RentTrend source={report.areaRent} />
+          <RentTrend source={report.areaRent} facts={facts} />
           <StabilizationCard source={report.stabilization} areaRent={report.areaRent} />
           <LandlordPortfolio source={report.landlord} currentBbl={bbl} />
           <GradeCard grade={grade} />

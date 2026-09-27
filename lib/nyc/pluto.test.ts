@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchBuildingFacts } from './pluto';
+import { averageUnitSqFt, fetchBuildingFacts } from './pluto';
 
 const REF_BBL = '1021310044';
 // Shape verified live: PLUTO returns bbl as a float string and numbers as strings.
@@ -12,6 +12,8 @@ const REF_ROW = {
   yearbuilt: '1911',
   numfloors: '6.0000000',
   ownername: 'MAURAY REALTY USA LLC',
+  // Verified live 2026-09-27: 58,098 sq ft over 58 apartments.
+  resarea: '58098',
 };
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -40,6 +42,7 @@ describe('fetchBuildingFacts', () => {
         yearBuilt: 1911,
         numFloors: 6,
         ownerName: 'MAURAY REALTY USA LLC',
+        resAreaSqFt: 58098,
       },
     });
   });
@@ -82,5 +85,29 @@ describe('fetchBuildingFacts', () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.data.yearBuilt).toBeNull();
+  });
+});
+
+describe('averageUnitSqFt', () => {
+  const facts = {
+    bbl: '1021310044',
+    address: '2308 AMSTERDAM AVENUE',
+    zipcode: '10033',
+    unitsRes: 58,
+    unitsTotal: 62,
+    yearBuilt: 1911,
+    numFloors: 6,
+    ownerName: 'MAURAY REALTY USA LLC',
+    resAreaSqFt: 58098,
+  };
+
+  it('divides gross residential area by the apartment count', () => {
+    expect(averageUnitSqFt(facts)).toBeCloseTo(1001.69, 1);
+  });
+
+  it('returns null rather than a number when PLUTO has no area', () => {
+    // A missing area must not silently render as 0 sq ft, which reads as a
+    // fact about the building rather than an absence of one.
+    expect(averageUnitSqFt({ ...facts, resAreaSqFt: null })).toBeNull();
   });
 });

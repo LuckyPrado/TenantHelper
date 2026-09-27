@@ -1,3 +1,4 @@
+import { averageUnitSqFt, type BuildingFacts } from '@/lib/nyc/pluto';
 import type { SourceValue } from '@/lib/nyc/report';
 import type { AreaRent, RentPoint } from '@/lib/nyc/zori';
 import { Section } from './doc/primitives';
@@ -69,13 +70,73 @@ function Sparkline({ series }: { readonly series: readonly RentPoint[] }) {
 }
 
 /**
+ * What the area rent works out to, given how big the apartments here are.
+ *
+ * The size is this building's, from PLUTO; the rent is the ZIP's, from ZORI.
+ * Mixing the two is the whole point — it is the only way to turn a
+ * neighbourhood number into something comparable with a listing — but it is
+ * arithmetic across two sources, so the arithmetic is printed underneath
+ * rather than presented as a measured fact.
+ */
+function WhatItBuys({
+  rent,
+  facts,
+}: {
+  readonly rent: AreaRent;
+  readonly facts: BuildingFacts | null;
+}) {
+  if (facts === null) return null;
+  const sqFt = averageUnitSqFt(facts);
+  if (sqFt === null) return null;
+
+  const perSqFt = rent.latest.rent / sqFt;
+
+  return (
+    <div className="rule mt-4 pt-3">
+      <div className="flex items-baseline justify-between gap-4">
+        <span className="text-[0.88rem] text-ink-soft">Average apartment in this building</span>
+        <span className="tabular text-[1.3rem] font-600 text-ink" data-numeric>
+          {Math.round(sqFt).toLocaleString()} sq ft
+        </span>
+      </div>
+      <div className="mt-2 flex items-baseline justify-between gap-4">
+        <span className="text-[0.88rem] text-ink-soft">Area rent at that size</span>
+        <span className="tabular text-[1.3rem] font-600 text-ink" data-numeric>
+          ${perSqFt.toFixed(2)} / sq ft
+        </span>
+      </div>
+      <p className="mt-2 text-[0.75rem] leading-snug text-ink-faint">
+        {facts.resAreaSqFt?.toLocaleString()} sq ft of residential floor area over{' '}
+        {facts.unitsRes} apartments. That area is gross — hallways, stairwells and lobbies count
+        — so a real apartment here is smaller than {Math.round(sqFt).toLocaleString()} sq ft, and
+        the rate per square foot is correspondingly a floor.{' '}
+        <a
+          href="https://data.cityofnewyork.us/d/64uk-42ks"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline decoration-dotted underline-offset-2 hover:text-ink"
+        >
+          PLUTO
+        </a>
+      </p>
+    </div>
+  );
+}
+
+/**
  * Area rent for the building's ZIP.
  *
  * Labelled "area" throughout on purpose: ZORI is a ZIP-level index, so it
  * describes the neighbourhood and not this apartment. The projection prints its
  * own arithmetic rather than hiding behind the number.
  */
-export function RentTrend({ source }: { readonly source: SourceValue<AreaRent> }) {
+export function RentTrend({
+  source,
+  facts,
+}: {
+  readonly source: SourceValue<AreaRent>;
+  readonly facts: BuildingFacts | null;
+}) {
   if (source.value === null) {
     return (
       <Section title="Area rent">
@@ -117,6 +178,8 @@ export function RentTrend({ source }: { readonly source: SourceValue<AreaRent> }
           </span>
         </div>
       )}
+
+      <WhatItBuys rent={rent} facts={facts} />
 
       <p className="mt-3 text-[0.75rem] leading-snug text-ink-faint">
         {rent.method} This is the index for the whole ZIP code, not this building&apos;s rent.{' '}
